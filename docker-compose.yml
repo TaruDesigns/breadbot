@@ -1,0 +1,9 @@
+version: "3"
+
+services:
+  breadbot:
+    build: .
+    ports:
+      - "5987:5987"
+    volumes:
+      - "./:/app"
