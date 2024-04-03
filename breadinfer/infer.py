@@ -6,11 +6,12 @@ import supervision as sv
 from inference_sdk import InferenceConfiguration, InferenceHTTPClient
 from loguru import logger
 
-CLIENT = InferenceHTTPClient(
-    api_url="https://outline.roboflow.com", api_key=os.environ.get("ROBOFLOW_API_KEY")
-)
-label_annotator = sv.LabelAnnotator()
 mask_annotator = sv.MaskAnnotator()
+label_annotator = sv.LabelAnnotator()
+CLIENT = InferenceHTTPClient(
+    api_url="https://outline.roboflow.com",
+    api_key=os.environ.get("ROBOFLOW_API_KEY"),
+)
 
 
 def segmentation_from_imgpath(input_img: str = None, output_img: str = None):
@@ -18,9 +19,9 @@ def segmentation_from_imgpath(input_img: str = None, output_img: str = None):
     if input_img is None:
         raise ValueError("invalid image")
     if output_img is None:
-        output_img = os.path.join(
-            os.getcwd(), "output", "segmented", os.path.getbasename(input_img)
-        )
+        outputfolder = os.path.join(os.getcwd(), "output", "segmented")
+        os.makedirs(outputfolder, exist_ok=True)
+        output_img = os.path.join(outputfolder, os.path.basename(input_img))
     logger.info(f"Requesting Inference for Segmentation on: {input_img}")
     result = CLIENT.infer(input_img, model_id="bread-segmentation-hfhm8/4")
 
@@ -76,6 +77,7 @@ def labels_from_imgpath(input_img: str = None):
     if input_img is None:
         raise ValueError("invalid image")
     logger.info(f"Requesting label predictions for: {input_img}")
+
     result = CLIENT.infer(input_img, model_id="bread-seg/7")
     predictions = {
         prediction["class"]: prediction["confidence"]

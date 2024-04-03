@@ -7,3 +7,5 @@ services:
       - "5987:5987"
     volumes:
       - "./:/app"
+    env_file:
+      - .env

@@ -1,15 +1,15 @@
+import asyncio
+import json
 import os
 import sys
-import json
-import asyncio
-import uvicorn
-import discord
 
+import discord
+import uvicorn
 from dotenv import load_dotenv
 from fastapi import FastAPI
-
 from loguru import logger
 
+from breadinfer import infer
 from discordroutes import checks as dischecks
 
 load_dotenv()
@@ -79,9 +79,15 @@ async def on_message(message):
             filename = os.path.join(download_directory, attachment.filename)
             await attachment.save(filename)
             print(f"Saved {attachment.filename} to {download_directory}")
-        await message.channel.send(
-            "You're quite the breadmancer (lol I didn't actually check if it's a bread pic)"
-        )
+            labels = infer.labels_from_imgpath(filename)
+            if "bread" in labels.keys():
+                breadcomment = ", ".join(labels.keys())
+                out_img, result = infer.segmentation_from_imgpath(input_img=filename)
+                discord_file = discord.File(out_img)
+                await message.channel.send(
+                    file=discord_file,
+                    content=f"This is certainly bread! It seems to be {breadcomment}",
+                )
 
 
 if __name__ == "__main__":
