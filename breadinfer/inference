@@ -1,0 +1,87 @@
+import json
+import os
+
+import cv2
+import supervision as sv
+from dotenv import load_dotenv
+from inference_sdk import InferenceConfiguration, InferenceHTTPClient
+
+load_dotenv()
+
+# Instatiate these just once
+CLIENT = InferenceHTTPClient(
+    api_url="https://outline.roboflow.com", api_key=os.environ.get("ROBOFLOW_API_KEY")
+)
+label_annotator = sv.LabelAnnotator()
+mask_annotator = sv.MaskAnnotator()
+
+
+def segmentation_from_imgpath(input_img: str = None, output_img: str = None):
+    if input_img is None:
+        raise ValueError("invalid image")
+    if output_img is None:
+        output_img = os.path.join(
+            os.getcwd(), "output", "segmented", os.path.getbasename(input_img)
+        )
+    result = CLIENT.infer(input_img, model_id="bread-segmentation-hfhm8/4")
+
+    image = cv2.imread(input_img)
+
+    annotated_image = annotate_mask(image=image, result=result)
+    annotated_image = annotate_labels(image=image, result=result)
+
+    cv2.imwrite(output_img, annotated_image)
+    return output_img, result
+
+
+def annotate_labels(image, result):
+    """Input is Result from the inference
+    Image is already read with imread
+
+    Args:
+        image (_type_): _description_
+        result (_type_): _description_
+    """
+    labels = [item["class"] for item in result["predictions"]]
+    detections = sv.Detections.from_inference(result)
+    return label_annotator.annotate(scene=image, detections=detections, labels=labels)
+
+
+def annotate_mask(image, result):
+    """Input is Result from the inference
+    Image is already read with imread
+
+    Args:
+        image (_type_): _description_
+        result (_type_): _description_
+    """
+    detections = sv.Detections.from_inference(result)
+    return mask_annotator.annotate(scene=image, detections=detections)
+
+
+def labels_from_imgpath(input_img: str = None):
+    if input_img is None:
+        raise ValueError("invalid image")
+    result = CLIENT.infer(input_img, model_id="bread-seg/7")
+    predictions = {
+        prediction["class"]: prediction["confidence"]
+        for prediction in result["predictions"]
+    }
+    return predictions
+
+
+def map_confidence_to_sentiment(confidence: float, label: str):
+    if confidence < 0.5:
+        return None
+    elif confidence < 0.6:
+        return "Weakly Negative"
+    elif confidence < 0.7:
+        return "Negative"
+    elif confidence < 0.8:
+        return "Somewhat Negative"
+    elif confidence < 0.9:
+        return "Neutral"
+    elif confidence < 1.0:
+        return "Somewhat Positive"
+    else:
+        return "Positive"
