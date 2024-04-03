@@ -162,3 +162,4 @@ testdata/
 *.weights
 testsbreadcompute/
 yolosettings/
+test.ipynb
