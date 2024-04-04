@@ -65,11 +65,51 @@ def annotate_mask(image, result):
     """
     try:
         detections = sv.Detections.from_inference(result)
-        annotated = mask_annotator.annotate(scene=image, detections=detections)
+        reshaped_image = reshape_image_for_masking(image=image, mask=detections.mask)
+        annotated = mask_annotator.annotate(scene=reshaped_image, detections=detections)
         return annotated
     except Exception as e:
         logger.error(f"Error annotating mask: {e}")
         raise
+
+
+def reshape_image_for_masking(image, mask):
+    """Helper function to reshape image for masking
+    Dimensions must match for the mask annotator to work
+
+    Args:
+        image (_type_): Original image
+        mask (_type_): Mask (detections.mask)
+
+    Returns:
+        image: Reshaped image
+    """
+    # Detections mask shape is (1, x, y)
+    # Image shape (BGR) is (x, y, 3)
+    x_img, y_img = image.shape[0], image.shape[1]
+    x_mask, y_mask = mask.shape[1], mask.shape[2]
+    reshaped_image = image  # Init reshaped image as same dimension
+    if x_img >= x_mask and y_img >= y_mask:
+        # Original image is bigger or already the same so we just slice it
+        return reshaped_image[: mask.shape[1], : mask.shape[2], :]
+    else:
+        if x_img > x_mask:
+            # Slice the X dimension
+            reshaped_image = reshaped_image[: mask.shape[1], :, :]
+        elif x_img < x_mask:
+            # Pad the X dimensions
+            reshaped_image = np.pad(
+                reshaped_image, ((0, x_mask - x_img), (0, 0), (0, 0)), mode="constant"
+            )
+        if y_img > y_mask:
+            # Slice the Y dimension
+            reshaped_image[:, : mask.shape[2], :]
+        elif y_img < y_mask:
+            # Pad the Y dimension
+            reshaped_image = np.pad(
+                reshaped_image, ((0, 0), (0, y_mask - y_img), (0, 0)), mode="constant"
+            )
+        return reshaped_image
 
 
 def labels_from_imgpath(input_img: str = None):
