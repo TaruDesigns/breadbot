@@ -104,6 +104,12 @@ def map_confidence_to_sentiment(confidence: float, label: str):
         return "Positive"
 
 
+def get_message_content_from_labels(labels: list[str] = None):
+    # TODO
+    labeltext = ", ".join(labels.keys())
+    return f"This is certainly bread! It seems to be {labeltext}"
+
+
 if __name__ == "__main__":
     from dotenv import load_dotenv
 

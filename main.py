@@ -9,8 +9,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from loguru import logger
 
-from breadinfer import infer
-from discordroutes import checks as dischecks
+from discordroutes import bread as breadroute
 
 load_dotenv()
 
@@ -23,10 +22,6 @@ intents.message_content = True
 
 bot = discord.Client(intents=intents)
 
-# ENVIRONVARS
-download_directory = os.path.join(".", os.environ.get("DISCORD_DOWNLOAD_DIRECTORY"))
-discord_bread_channels = json.loads(os.environ.get("DISCORD_BREAD_CHANNELS"))
-allowed_bread_groups = json.loads(os.environ.get("DISCORD_BREAD_ROLE"))
 # Logger
 logger.remove()  # remove the old handler. Else, the old one will work along with the new one you've added below'
 logger.add(sys.stdout, level="DEBUG")
@@ -34,22 +29,20 @@ logger.add(sys.stdout, level="DEBUG")
 
 @app.on_event("startup")
 async def startup_event():  # this fucntion will run before the main API starts
-    if not os.path.exists(download_directory):
-        os.makedirs(download_directory)
     asyncio.create_task(bot.start(os.environ.get("DISCORD_TOKEN")))
     await asyncio.sleep(4)  # optional sleep for established connection with discord
     print(f"{bot.user} has connected to Discord!")
+
+
+@bot.event
+async def on_ready():
+    print(f"We have logged in as {bot.user}")
 
 
 @app.get("/")
 async def root(msg: str):  # API endpoint for sending a message to a discord's user
     user = await send_message(msg)
     return {"Message": f"'{msg}' sent to {user}"}
-
-
-@bot.event
-async def on_ready():
-    print(f"We have logged in as {bot.user}")
 
 
 async def send_message(message):
@@ -67,27 +60,11 @@ async def on_message(message):
         return
     if message.content.startswith("$hello"):
         # Just a test/health check function
-        await message.channel.send("Hello!")
+        await message.channel.send(content="Hello!", reference=message)
+
     # Check Bread Candidate Message
-    if await dischecks.check_bread_message(
-        message=message,
-        allowed_channels=discord_bread_channels,
-        allowed_group=allowed_bread_groups,
-    ):
-        # Download and save each attached picture
-        for attachment in message.attachments:
-            filename = os.path.join(download_directory, attachment.filename)
-            await attachment.save(filename)
-            print(f"Saved {attachment.filename} to {download_directory}")
-            labels = infer.labels_from_imgpath(filename)
-            if "bread" in labels.keys():
-                breadcomment = ", ".join(labels.keys())
-                out_img, result = infer.segmentation_from_imgpath(input_img=filename)
-                discord_file = discord.File(out_img)
-                await message.channel.send(
-                    file=discord_file,
-                    content=f"This is certainly bread! It seems to be {breadcomment}",
-                )
+    if await breadroute.check_bread_message(message=message):
+        await breadroute.send_bread_message(message=message)
 
 
 if __name__ == "__main__":
