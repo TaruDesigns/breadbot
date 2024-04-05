@@ -1,7 +1,9 @@
 import asyncio
 import json
+import logging
 import os
 import sys
+
 
 import discord
 import uvicorn
@@ -20,7 +22,9 @@ app = FastAPI()
 intents = discord.Intents.default()
 intents.message_content = True
 
+discord.utils.setup_logging(level=logging.INFO)
 bot = discord.Client(intents=intents)
+
 
 # Logger
 logger.remove()  # remove the old handler. Else, the old one will work along with the new one you've added below'
@@ -63,8 +67,11 @@ async def on_message(message):
         await message.channel.send(content="Hello!", reference=message)
 
     # Check Bread Candidate Message
-    if await breadroute.check_bread_message(message=message):
-        await breadroute.send_bread_message(message=message)
+    try:
+        if await breadroute.check_bread_message(message=message):
+            await breadroute.send_bread_message(message=message)
+    except Exception as e:
+        logger.error(e)
 
 
 if __name__ == "__main__":

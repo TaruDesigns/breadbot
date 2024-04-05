@@ -31,12 +31,25 @@ async def send_bread_message(message):
         print(f"Saved {attachment.filename} to {download_directory}")
         labels = infer.labels_from_imgpath(filename)
         if "bread" in labels.keys():
-            breadcomment = infer.get_message_content_from_labels(labels=labels)
-            out_img, result = infer.segmentation_from_imgpath(input_img=filename)
-            discord_file = discord.File(out_img)
+            if labels["bread"] > float(os.environ.get("MIN_BREAD_CONFIDENCE")):
+                breadcomment = infer.get_message_content_from_labels(labels=labels)
+                out_img, result = infer.segmentation_from_imgpath(
+                    input_img_path=filename
+                )
+                discord_file = discord.File(out_img)
+                await message.channel.send(
+                    file=discord_file,
+                    content=breadcomment,
+                    reference=message,
+                )
+            else:
+                await message.channel.send(
+                    content="This is only very mildly bread. Metaphysical bread even.",
+                    reference=message,
+                )
+        else:
             await message.channel.send(
-                file=discord_file,
-                content=breadcomment,
+                content="This isn't bread at all!",
                 reference=message,
             )
 

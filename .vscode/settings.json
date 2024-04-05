@@ -1,0 +1,9 @@
+{
+    "search.excludeFolders": {},
+    "files.exclude": {
+        "*__pycache__/": true,
+        "testsbreadcompute/": true,
+        "venv/": true,
+        "yolosettings/": true
+    }
+}
