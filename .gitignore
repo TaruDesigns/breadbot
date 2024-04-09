@@ -160,7 +160,15 @@ cython_debug/
 #.idea/
 testdata/
 *.weights
-testsbreadcompute/
-yolosettings/
-test.ipynb
-output/
+
+#YOLOv8 runs folder
+runs/
+
+# Ignore everything in the yolov8 folder
+yolov8/*
+
+# Except for ipynb files
+!yolov8/*.ipynb
+
+# And the final weights (hand picked)
+!yolov8/trainedmodels/

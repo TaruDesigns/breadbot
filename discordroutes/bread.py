@@ -33,10 +33,18 @@ async def send_bread_message(message):
         if "bread" in labels.keys():
             if labels["bread"] > float(os.environ.get("MIN_BREAD_CONFIDENCE")):
                 breadcomment = infer.get_message_content_from_labels(labels=labels)
-                out_img, result = infer.segmentation_from_imgpath(
-                    input_img_path=filename
-                )
-                discord_file = discord.File(out_img)
+                try:
+                    out_img, result = infer.segmentation_from_imgpath(
+                        input_img_path=filename
+                    )
+                    discord_file = discord.File(out_img)
+                except Exception as e:
+                    logger.error(e)
+                    discord_file = discord.File(filename)
+                    breadcomment = (
+                        breadcomment
+                        + ". I couldn't find the shape dough. (Get it? Though - dough ehehehehe)"
+                    )
                 await message.channel.send(
                     file=discord_file,
                     content=breadcomment,
