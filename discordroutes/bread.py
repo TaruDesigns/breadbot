@@ -5,7 +5,7 @@ import discord
 from dotenv import load_dotenv
 from loguru import logger
 
-from breadinfer import infer
+from breadinfer.inference import InferenceHandler
 
 load_dotenv()
 download_directory = os.path.join(
@@ -13,6 +13,8 @@ download_directory = os.path.join(
 )
 discord_bread_channels = json.loads(os.environ.get("DISCORD_BREAD_CHANNELS"))
 allowed_bread_groups = json.loads(os.environ.get("DISCORD_BREAD_ROLE"))
+
+inferhandler = InferenceHandler(local=True)
 
 
 async def send_bread_message(message):
@@ -29,12 +31,14 @@ async def send_bread_message(message):
             os.makedirs(download_directory)
         await attachment.save(filename)
         print(f"Saved {attachment.filename} to {download_directory}")
-        labels = infer.labels_from_imgpath(filename)
+        labels = inferhandler.labels_from_imgpath(filename)
         if "bread" in labels.keys():
             if labels["bread"] > float(os.environ.get("MIN_BREAD_CONFIDENCE")):
-                breadcomment = infer.get_message_content_from_labels(labels=labels)
+                breadcomment = inferhandler.get_message_content_from_labels(
+                    labels=labels
+                )
                 try:
-                    out_img, result = infer.segmentation_from_imgpath(
+                    out_img, result = inferhandler.segmentation_from_imgpath(
                         input_img_path=filename
                     )
                     discord_file = discord.File(out_img)

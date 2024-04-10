@@ -172,3 +172,6 @@ yolov8/*
 
 # And the final weights (hand picked)
 !yolov8/trainedmodels/
+
+output/
+localyolooutput/
