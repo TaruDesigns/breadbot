@@ -1,1 +1,34 @@
-breadsegv4.pt: https://universe.roboflow.com/school-dkgod/bread-segmentation-hfhm8
+#Quick reference of the models
+- breadv7m-det.pt:
+  task: detect
+  model: yolov8m.pt
+  data: /home/hawa/shared/datasets/breadsegv7cls/data.yaml
+  url: https://universe.roboflow.com/class-tu4kk/bread-seg
+  comment: Medium model for object detection (supercharged classification)
+  projectfolder: breadv7m/v7det
+
+
+- breadv7n-det.pt:
+  task: detect
+  model: yolov8m.pt
+  data: /home/hawa/shared/datasets/breadsegv7cls/data.yaml
+  url: https://universe.roboflow.com/class-tu4kk/bread-seg
+  comment: Nano model for object detection (supercharged classification). Lower hardware reqs
+  projectfolder: breadv7n/v7det
+  
+
+- breadsegv4m-seg.pt:
+  task: segment
+  model: yolov8m-seg.pt
+  data: /home/hawa/shared/datasets/breadsegmentationv4/data.yaml
+  url: https://universe.roboflow.com/school-dkgod/bread-segmentation-hfhm8
+  comment: Medium model for segmentation 
+  projectfolder: breadv4m/v4seg
+
+- breadsegv4n-seg.pt:
+  task: segment
+  model: yolov8m-seg.pt
+  data: /home/hawa/shared/datasets/breadsegmentationv4/data.yaml
+  url: https://universe.roboflow.com/school-dkgod/bread-segmentation-hfhm8
+  comment: Nano model for segmentation (Good for low hardware and fairly accurate for the size)
+  projectfolder: breadv4n/v4seg    
