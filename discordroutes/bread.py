@@ -31,14 +31,17 @@ async def send_bread_message(message):
             os.makedirs(download_directory)
         await attachment.save(filename)
         print(f"Saved {attachment.filename} to {download_directory}")
-        labels = inferhandler.labels_from_imgpath(filename)
+        labels = await inferhandler.async_labels_from_imgpath(filename)
         if "bread" in labels.keys():
             if labels["bread"] > float(os.environ.get("MIN_BREAD_CONFIDENCE")):
                 breadcomment = inferhandler.get_message_content_from_labels(
                     labels=labels
                 )
                 try:
-                    out_img, result = inferhandler.segmentation_from_imgpath(
+                    (
+                        out_img,
+                        result,
+                    ) = await inferhandler.async_segmentation_from_imgpath(
                         input_img_path=filename
                     )
                     discord_file = discord.File(out_img)

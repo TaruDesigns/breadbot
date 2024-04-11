@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 import shutil
@@ -15,8 +16,8 @@ class InferenceHandler:
         self,
         local: bool = True,
         http_det_model: str = "bread-seg/7",
-        http_seg_model: str = "bread-segmentation-hfhm8/4",
         local_det_model: str = "breadv7m-det.pt",
+        http_seg_model: str = "bread-segmentation-hfhm8/4",
         local_seg_model: str = "breadsegv4m-seg.pt",
     ):
         self._local = local
@@ -42,6 +43,37 @@ class InferenceHandler:
             self.http_det_model = http_det_model
             self.http_seg_model = http_seg_model
         ...
+
+    async def async_labels_from_imgpath(self, input_img_path: str = None):
+        """Async helper to run inference on detection(labels)
+
+        Args:
+            filename (_type_): _description_
+
+        Returns:
+            _type_: _description_
+        """
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(
+            None, self.labels_from_imgpath, input_img_path
+        )
+
+    async def async_segmentation_from_imgpath(
+        self, input_img_path: str = None, output_img_path: str = None
+    ) -> Tuple[str, Dict]:
+        """Async helper to run inference on segmentation
+
+        Args:
+            input_img_path (str): _description_
+            output_img_path (str): _description_
+
+        Returns:
+            Tuple[str, Dict]: _description_
+        """
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(
+            None, self.segmentation_from_imgpath, input_img_path, output_img_path
+        )
 
     def segmentation_from_imgpath(
         self, input_img_path: str = None, output_img_path: str = None
