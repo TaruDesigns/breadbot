@@ -16,8 +16,8 @@ class InferenceHandler:
         local: bool = True,
         http_det_model: str = "bread-seg/7",
         http_seg_model: str = "bread-segmentation-hfhm8/4",
-        local_det_model: str = "breadv7n-det.pt",
-        local_seg_model: str = "breadsegv4n-seg.pt",
+        local_det_model: str = "breadv7m-det.pt",
+        local_seg_model: str = "breadsegv4m-seg.pt",
     ):
         self._local = local
         if local:

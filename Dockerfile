@@ -1,5 +1,5 @@
 # Use the official Python image
-FROM python:3.9-slim
+FROM python:3.10-slim-buster
 
 RUN apt-get update && apt-get install ffmpeg libsm6 libxext6 libglib2.0-0 libxrender1 libgl1  -y
 # Set environment variables
