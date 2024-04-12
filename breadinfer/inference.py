@@ -116,27 +116,29 @@ class InferenceHandler:
                 conf=float(os.environ.get("MIN_BREAD_CONFIDENCE")),
                 project="output",
                 name="segmented",
+                exist_ok=True,
                 show_labels=False,
                 show_conf=False,
                 show_boxes=False,
             )
             if results:
-                # It's saved previously but we can't set the path directly so we retrieve it here
+                # It's saved when running predict but we can't set the path directly so we retrieve it here and moved to destination path
                 temp_filepath = os.path.join(
                     results[0].save_dir, os.path.basename(results[0].path)
                 )
-                if os.path.exists(output_img_path):
-                    # Shutil.move only works if file doesn't already exist, so this is to make sure it overwrites.
-                    # I should just use a UUID instead though.
-                    os.remove(output_img_path)
+                # if os.path.abspath(temp_filepath) == os.path.abspath(output_img_path):
+                #    return output_img_path, results
+                logger.debug(f"Moving from {temp_filepath} to {output_img_path}")
+                # if os.path.exists(output_img_path):
+                # Shutil.move only works if file doesn't already exist, so this is to make sure it overwrites.
+                # I should just use a UUID instead though.
+                #    os.remove(output_img_path)
                 shutil.move(temp_filepath, output_img_path)
+                logger.debug(f"File moved from {temp_filepath} to {output_img_path}")
                 return output_img_path, results
             else:
                 return None, None
-            ...  # TODO get results
         else:
-            import supervision as sv
-
             logger.info(f"Requesting Inference for Segmentation on: {input_img_path}")
             result = self.http_client.infer(
                 input_img_path, model_id=self.http_seg_model
@@ -266,6 +268,7 @@ class InferenceHandler:
             raise ValueError("invalid image")
         if self._local:
             # Compute inference with local model
+            logger.info(f"Computing label predictions for: {input_img_path}")
             results = self.local_det_model.predict(
                 input_img_path,
                 save=False,
@@ -284,11 +287,9 @@ class InferenceHandler:
                 predictions = {}
             logger.info(f"Label Predictions: {predictions}")
             return predictions
-            ...  # TODO add local labels
         else:
             # Compute with Roboflow
             logger.info(f"Requesting label predictions for: {input_img_path}")
-
             result = self.http_client.infer(
                 input_img_path, model_id=self.http_det_model
             )
@@ -343,7 +344,7 @@ if __name__ == "__main__":
     load_dotenv()
     infer = InferenceHandler(local=True)
 
-    input_img = "downloads/IMG_20240406_105654_871.jpg"
+    input_img = "downloads/IMG_3904.png"
     output_img = "output/segmented/roboresult.png"
 
     labels = infer.labels_from_imgpath(input_img_path=input_img)
