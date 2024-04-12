@@ -17,7 +17,7 @@ allowed_bread_groups = json.loads(os.environ.get("DISCORD_BREAD_ROLE"))
 inferhandler = InferenceHandler(local=True)
 
 
-async def send_bread_message(message):
+async def send_bread_message(message) -> None:
     """Main "bread analyze" function -> Does all the compute
     and sends a reply
 
@@ -30,48 +30,49 @@ async def send_bread_message(message):
         if not os.path.exists(download_directory):
             os.makedirs(download_directory)
         await attachment.save(filename)
-        print(f"Saved {attachment.filename} to {download_directory}")
-        labels = await inferhandler.async_labels_from_imgpath(filename)
-        if "bread" in labels.keys():
-            if labels["bread"] > float(os.environ.get("MIN_BREAD_CONFIDENCE")):
-                breadcomment = inferhandler.get_message_content_from_labels(
-                    labels=labels
-                )
-                try:
-                    (
-                        out_img,
-                        result,
-                    ) = await inferhandler.async_segmentation_from_imgpath(
-                        input_img_path=filename
+        logger.info(f"Saved {attachment.filename} to {download_directory}")
+        async with message.channel.typing():
+            labels = await inferhandler.async_labels_from_imgpath(filename)
+            if "bread" in labels.keys():
+                if labels["bread"] > float(os.environ.get("MIN_BREAD_CONFIDENCE")):
+                    breadcomment = inferhandler.get_message_content_from_labels(
+                        labels=labels
                     )
-                    discord_file = discord.File(out_img)
-                except Exception as e:
-                    logger.error(e)
-                    discord_file = discord.File(filename)
-                    breadcomment = (
-                        breadcomment
-                        + ". I couldn't find the shape dough. (Get it? Though - dough ehehehehe)"
+                    try:
+                        (
+                            out_img,
+                            result,
+                        ) = await inferhandler.async_segmentation_from_imgpath(
+                            input_img_path=filename
+                        )
+                        discord_file = discord.File(out_img)
+                    except Exception as e:
+                        logger.error(e)
+                        discord_file = discord.File(filename)
+                        breadcomment = (
+                            breadcomment
+                            + ". I couldn't find the shape dough. (Get it? Though - dough ehehehehe)"
+                        )
+                    await message.channel.send(
+                        file=discord_file,
+                        content=breadcomment,
+                        reference=message,
                     )
-                await message.channel.send(
-                    file=discord_file,
-                    content=breadcomment,
-                    reference=message,
-                )
+                else:
+                    await message.channel.send(
+                        content="This is only very mildly bread. Metaphysical bread even.",
+                        reference=message,
+                    )
             else:
                 await message.channel.send(
-                    content="This is only very mildly bread. Metaphysical bread even.",
+                    content="This isn't bread at all!",
                     reference=message,
                 )
-        else:
-            await message.channel.send(
-                content="This isn't bread at all!",
-                reference=message,
-            )
 
 
 async def check_bread_message(
     message, allowed_channels=discord_bread_channels, allowed_group=allowed_bread_groups
-):
+) -> None:
     """Check Possible Bread Message: Message must be in one of the allowed channels
     made by a "Breadmancer" user
     and have attachments

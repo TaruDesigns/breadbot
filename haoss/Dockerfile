@@ -6,7 +6,7 @@ COPY requirements.txt .
 COPY main.py .
 
 RUN apt-get update
-RUN apt-get install ffmpeg libsm6 libxext6  -y
+RUN apt-get install ffmpeg libsm6 libxext6 gcc python3-dev -y
 
 RUN pip3 install -r requirements.txt
 
