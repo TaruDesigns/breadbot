@@ -5,7 +5,7 @@ import discord
 from dotenv import load_dotenv
 from loguru import logger
 
-from breadinfer.inference import InferenceHandler
+from breadinfer.inference import inferhandler
 
 load_dotenv()
 download_directory = os.path.join(
@@ -13,8 +13,6 @@ download_directory = os.path.join(
 )
 discord_bread_channels = json.loads(os.environ.get("DISCORD_BREAD_CHANNELS"))
 allowed_bread_groups = json.loads(os.environ.get("DISCORD_BREAD_ROLE"))
-
-inferhandler = InferenceHandler(local=True)
 
 
 async def send_bread_message(message) -> None:

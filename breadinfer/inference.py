@@ -22,6 +22,7 @@ class InferenceHandler:
     ):
         self._local = local
         if local:
+            logger.info("Loading inference models: Local")
             from ultralytics import YOLO
 
             self.local_det_model = YOLO(
@@ -34,6 +35,7 @@ class InferenceHandler:
             import supervision as sv
             from inference_sdk import InferenceConfiguration, InferenceHTTPClient
 
+            logger.info("Loading inference models: HTTP")
             self.http_mask_annotator = sv.MaskAnnotator()
             self.http_label_annotator = sv.LabelAnnotator()
             self.http_client = InferenceHTTPClient(
@@ -126,13 +128,7 @@ class InferenceHandler:
                 temp_filepath = os.path.join(
                     results[0].save_dir, os.path.basename(results[0].path)
                 )
-                # if os.path.abspath(temp_filepath) == os.path.abspath(output_img_path):
-                #    return output_img_path, results
                 logger.debug(f"Moving from {temp_filepath} to {output_img_path}")
-                # if os.path.exists(output_img_path):
-                # Shutil.move only works if file doesn't already exist, so this is to make sure it overwrites.
-                # I should just use a UUID instead though.
-                #    os.remove(output_img_path)
                 shutil.move(temp_filepath, output_img_path)
                 logger.debug(f"File moved from {temp_filepath} to {output_img_path}")
                 return output_img_path, results
@@ -338,18 +334,21 @@ class InferenceHandler:
         return f"This is certainly bread! It seems to be {labeltext}"
 
 
+# Default inference handler with local models ready to import
+inferhandler = InferenceHandler(local=True)
+
 if __name__ == "__main__":
     from dotenv import load_dotenv
 
     load_dotenv()
-    infer = InferenceHandler(local=True)
+    inferhandler = InferenceHandler(local=True)
 
     input_img = "downloads/IMG_3904.png"
     output_img = "output/segmented/roboresult.png"
 
-    labels = infer.labels_from_imgpath(input_img_path=input_img)
+    labels = inferhandler.labels_from_imgpath(input_img_path=input_img)
     if "bread" in labels.keys():
-        _, result = infer.segmentation_from_imgpath(
+        _, result = inferhandler.segmentation_from_imgpath(
             input_img_path=input_img, output_img_path=output_img
         )
         print("A")
