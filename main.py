@@ -25,7 +25,7 @@ logger.add(sys.stdout, level="DEBUG")
 
 
 @app.on_event("startup")
-async def startup_event():  # this fucntion will run before the main API starts
+async def startup_event():  # this function will run before the main API starts
     asyncio.create_task(bot.start(os.environ.get("DISCORD_TOKEN")))
     await asyncio.sleep(4)  # optional sleep for established connection with discord
     print(f"{bot.user} has connected to Discord!")

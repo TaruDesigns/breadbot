@@ -10,7 +10,7 @@ from loguru import logger
 
 
 class InferenceHandler:
-    """Main Inference class, wroks for both local and http requests (roboflow) based on the input parameter. Default is local model"""
+    """Main Inference class, works for both local and http requests (roboflow) based on the input parameter. Default is local model"""
 
     def __init__(
         self,
@@ -123,7 +123,7 @@ class InferenceHandler:
                 show_conf=False,
                 show_boxes=False,
             )
-            if results:
+            if results and results[0].masks is not None:
                 # It's saved when running predict but we can't set the path directly so we retrieve it here and moved to destination path
                 temp_filepath = os.path.join(
                     results[0].save_dir, os.path.basename(results[0].path)
@@ -184,9 +184,8 @@ class InferenceHandler:
         """
         if self._local:
             raise NotImplementedError(
-                "Annotating mask with local model returns a written image file"
+                "Predict with local model will already write labels, use that "
             )
-            ...  # TODO add local labels
         else:
             import supervision as sv
 
@@ -306,22 +305,25 @@ class InferenceHandler:
         Returns:
             str: Value for the confidence specified
         """
+        label = label.replace("_", " ")
         if confidence < 0.5:
             return None
         elif confidence < 0.6:
-            return "Weakly Negative"
+            return f", I think it's barely {label}"
         elif confidence < 0.7:
-            return "Negative"
+            return f"just a bit {label}"
         elif confidence < 0.8:
-            return "Somewhat Negative"
+            return f"not that sure about it being {label}"
         elif confidence < 0.9:
-            return "Neutral"
+            return f"fairly confident that it's {label}"
         elif confidence < 1.0:
-            return "Somewhat Positive"
+            return f"pretty sure it is {label}"
         else:
-            return "Positive"
+            return f"Confirmed that it's {label}"
 
-    def get_message_content_from_labels(self, labels: list[str] = None) -> str:
+    def get_message_content_from_labels(
+        self, predictions: Dict[str, float] = None
+    ) -> str:
         """Generate a message based on the input labels
 
         Args:
@@ -330,8 +332,57 @@ class InferenceHandler:
         Returns:
             str: Generated message to be used when sending
         """
-        labeltext = ", ".join(labels.keys())
-        return f"This is certainly bread! It seems to be {labeltext}"
+        labeltext = "This is certainly bread! "
+        for label, confidence in predictions.items():
+            labeltext = (
+                labeltext
+                + self.map_confidence_to_sentiment(confidence=confidence, label=label)
+                + " "
+            )
+        logger.debug(labeltext)
+        return labeltext
+
+    def estimate_roundness_from_mask(self, results) -> float:
+        if results and results[0].masks is not None:
+            orig_shape = results[0].masks.orig_shape
+            mask = results[0].masks.xy
+        else:
+            raise ValueError("No masks to read")
+        if orig_shape is None:
+            raise ValueError("Orig Shape is mandatory")
+        if mask is None:
+            raise ValueError("Mask is mandatory")
+        black_image = np.zeros(
+            (orig_shape[0], orig_shape[1], 3), dtype=np.uint8
+        )  # Empty image to draw lines and use to estimate contours
+        cv2.polylines(black_image, np.int32([mask]), True, (255, 255, 255), 2)
+        gray_image = cv2.cvtColor(
+            black_image, cv2.COLOR_BGR2GRAY
+        )  # Polylines turns the image to BGR so we need to turn it back to grayscale
+        # Find contours in the mask
+        contours, _ = cv2.findContours(
+            gray_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+        )
+        # Assuming there's only one closed contour
+        if contours:
+            contour = contours[0]
+            # Calculate area of the contour
+            area = cv2.contourArea(contour)
+            # Calculate minimum enclosing circle and its area
+            (x, y), radius = cv2.minEnclosingCircle(contour)
+            circle_area = np.pi * radius**2
+            # Calculate roundness (ratio of contour area to area of minimum enclosing circle)
+            roundness = area / circle_area
+            return roundness
+        else:
+            return None
+
+    def get_message_from_roundness(self, roundness: float = None):
+        if roundness is None:
+            return "I don't think this bread is round at all..."
+        messagecontent = f"This bread seems {round(roundness * 100, 2):.2f}% round. Anything over an 80% is pretty close to a sphere!"
+        logger.debug(messagecontent)
+        return messagecontent
 
 
 # Default inference handler with local models ready to import
