@@ -32,5 +32,5 @@ Additionally, the `haoss` folder contains a sample configuration to deploy this 
 
 - Size estimation of bread
 - Roundness estimation of bread
-- Admin panel (based on FastAPI)
-- Proper async inference with a "BreadBot is typing..." message for better UX
+- Admin panel (based on FastAPI) -> In Progress, basic endpoints created
+- ~~Proper async inference with a "BreadBot is typing..." message for better UX~~ Done

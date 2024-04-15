@@ -5,8 +5,6 @@ import discord
 from dotenv import load_dotenv
 from loguru import logger
 
-from breadinfer.inference import inferhandler
-
 load_dotenv()
 download_directory = os.path.join(
     os.getcwd(), os.environ.get("DISCORD_DOWNLOAD_DIRECTORY")
@@ -22,6 +20,9 @@ async def send_bread_message(message) -> None:
     Args:
         message (_type_): _description_
     """
+    # Lazy import to make sure it's always updated
+    from breadinfer.inference import inferhandler
+
     # Download and save each attached picture
     for attachment in message.attachments:
         filename = os.path.join(download_directory, attachment.filename)
@@ -34,7 +35,7 @@ async def send_bread_message(message) -> None:
             if "bread" in labels.keys():
                 if labels["bread"] > float(os.environ.get("MIN_BREAD_CONFIDENCE")):
                     breadcomment = inferhandler.get_message_content_from_labels(
-                        labels=labels
+                        predictions=labels
                     )
                     try:
                         (
@@ -43,7 +44,11 @@ async def send_bread_message(message) -> None:
                         ) = await inferhandler.async_segmentation_from_imgpath(
                             input_img_path=filename
                         )
+                        roundcomment = inferhandler.get_message_from_roundness(
+                            inferhandler.estimate_roundness_from_mask(result)
+                        )
                         discord_file = discord.File(out_img)
+                        breadcomment = breadcomment + roundcomment
                     except Exception as e:
                         logger.error(e)
                         discord_file = discord.File(filename)
