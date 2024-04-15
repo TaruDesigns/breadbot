@@ -14,7 +14,6 @@ allowed_bread_groups = json.loads(os.environ.get("DISCORD_BREAD_ROLE"))
 
 
 async def send_bread_message(message) -> None:
-async def send_bread_message(message) -> None:
     """Main "bread analyze" function -> Does all the compute
     and sends a reply
 
