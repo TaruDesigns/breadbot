@@ -14,6 +14,7 @@ allowed_bread_groups = json.loads(os.environ.get("DISCORD_BREAD_ROLE"))
 
 
 async def send_bread_message(message) -> None:
+async def send_bread_message(message) -> None:
     """Main "bread analyze" function -> Does all the compute
     and sends a reply
 
@@ -75,6 +76,7 @@ async def send_bread_message(message) -> None:
 
 async def check_bread_message(
     message, allowed_channels=discord_bread_channels, allowed_group=allowed_bread_groups
+) -> None:
 ) -> None:
     """Check Possible Bread Message: Message must be in one of the allowed channels
     made by a "Breadmancer" user
