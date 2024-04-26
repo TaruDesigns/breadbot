@@ -5,8 +5,6 @@
 - [2. Planned features](#2-planned-features)
 
 
-
-
 # 1. BreadBot
 
 Discord bot that sees your bread and confirms that it is, in fact, bread, using computer vision. Based on discord.py.
@@ -31,6 +29,6 @@ Additionally, the `haoss` folder contains a sample configuration to deploy this 
 # 2. Planned features
 
 - Size estimation of bread
-- Roundness estimation of bread
+~~- Roundness estimation of bread~~
 - Admin panel (based on FastAPI) -> In Progress, basic endpoints created
 - ~~Proper async inference with a "BreadBot is typing..." message for better UX~~ Done
