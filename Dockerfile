@@ -23,7 +23,17 @@ COPY requirements.txt .
 RUN pip install --upgrade pip && pip install -r requirements.txt
 
 # Copy the local code to the container
-COPY . .
+#COPY . .
+
+COPY apiroutes ./apiroutes
+COPY breadinfer ./breadinfer
+COPY discordroutes ./discordroutes
+COPY yolov8/trainedmodels ./yolov8/trainedmodels
+COPY main.py .
+
+# Copy the .env file
+
+COPY ./.env .
 
 # Expose the port that FastAPI is running on
 EXPOSE 5987
