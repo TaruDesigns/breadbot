@@ -13,7 +13,9 @@ discord_bread_channels = json.loads(os.environ.get("DISCORD_BREAD_CHANNELS"))
 allowed_bread_groups = json.loads(os.environ.get("DISCORD_BREAD_ROLE"))
 
 
-async def send_bread_message(message) -> None:
+async def send_bread_message(
+    message: discord.Message, overrideconfidence: bool = False
+) -> None:
     """Main "bread analyze" function -> Does all the compute
     and sends a reply
 
@@ -31,9 +33,15 @@ async def send_bread_message(message) -> None:
         await attachment.save(filename)
         logger.info(f"Saved {attachment.filename} to {download_directory}")
         async with message.channel.typing():
-            labels = await inferhandler.async_labels_from_imgpath(filename)
+            if overrideconfidence:
+                labels = await inferhandler.async_labels_from_imgpath(filename, 0.01)
+            else:
+                labels = await inferhandler.async_labels_from_imgpath(filename)
             if "bread" in labels.keys():
-                if labels["bread"] > float(os.environ.get("MIN_BREAD_CONFIDENCE")):
+                if (
+                    labels["bread"] > float(os.environ.get("MIN_BREAD_CONFIDENCE"))
+                    or overrideconfidence
+                ):
                     breadcomment = inferhandler.get_message_content_from_labels(
                         predictions=labels
                     )
@@ -110,3 +118,38 @@ async def check_bread_message(
         return False
     logger.debug("Bread message candidate detected")
     return True
+
+
+async def check_areyousure_message(message: discord.Message, botuser: str) -> None:
+    """Check "Are you sure?" Message: User replies to message by bot and tells it to rerun the inference with lower confidence. Message can only be valid if it's a reply to a message done by the bot itself
+
+    Args:
+        message (DiscordMessage): DiscordMessage object
+        botuser (str): bot user
+
+    Returns:
+        Bool: Whether it passes all checks or not
+    """
+
+    trigger_texts = ["are you sure", "fr no cap", "no way"]
+    logger.debug("Checking message for areyousure content...")
+    # Check if the message is a reply
+    if not (
+        message.reference
+        and message.reference.resolved
+        and message.reference.resolved.author == botuser
+    ):
+        return False
+    # Check if message includes "are you sure or similar words"
+    if not any(trigger in message.content.lower() for trigger in trigger_texts):
+        return False
+    return True
+
+
+"""
+    # Check if there are any embedded pictures
+    if len(message.attachments) == 0:
+        logger.debug("Message without attachments")
+        return False
+    logger.debug("Are you sure message candidate detected")
+"""

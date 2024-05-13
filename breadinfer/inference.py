@@ -46,7 +46,9 @@ class InferenceHandler:
             self.http_seg_model = http_seg_model
         ...
 
-    async def async_labels_from_imgpath(self, input_img_path: str = None):
+    async def async_labels_from_imgpath(
+        self, input_img_path: str = None, confidence: float = None
+    ):
         """Async helper to run inference on detection(labels)
 
         Args:
@@ -57,7 +59,7 @@ class InferenceHandler:
         """
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(
-            None, self.labels_from_imgpath, input_img_path
+            None, self.labels_from_imgpath, input_img_path, confidence
         )
 
     async def async_segmentation_from_imgpath(
@@ -78,7 +80,10 @@ class InferenceHandler:
         )
 
     def segmentation_from_imgpath(
-        self, input_img_path: str = None, output_img_path: str = None
+        self,
+        input_img_path: str = None,
+        output_img_path: str = None,
+        confidence: float = None,
     ) -> Tuple[str, dict]:
         """Creates segmentation image
         Uses model from https://universe.roboflow.com/school-dkgod/bread-segmentation-hfhm8/model/4
@@ -111,11 +116,13 @@ class InferenceHandler:
         if self._local:
             # Get inference and file from computing with local YOLOv8 model
             logger.info(f"Computing local inference for segmentation: {input_img_path}")
+            if confidence is None:
+                confidence = float(os.environ.get("MIN_BREAD_CONFIDENCE"))
             results = self.local_seg_model.predict(
                 input_img_path,
                 save=True,
                 device="cpu",
-                conf=float(os.environ.get("MIN_BREAD_CONFIDENCE")),
+                conf=confidence,
                 project="output",
                 name="segmented",
                 exist_ok=True,
@@ -246,7 +253,9 @@ class InferenceHandler:
                 )
             return reshaped_image
 
-    def labels_from_imgpath(self, input_img_path: str = None) -> Dict[str, float]:
+    def labels_from_imgpath(
+        self, input_img_path: str = None, confidence: float = None
+    ) -> Dict[str, float]:
         """Generate labels for the image
 
         Args:
@@ -264,11 +273,13 @@ class InferenceHandler:
         if self._local:
             # Compute inference with local model
             logger.info(f"Computing label predictions for: {input_img_path}")
+            if confidence is None:
+                confidence = float(os.environ.get("MIN_BREADLABEL_CONFIDENCE"))
             results = self.local_det_model.predict(
                 input_img_path,
                 save=False,
                 device="cpu",
-                conf=float(os.environ.get("MIN_BREADLABEL_CONFIDENCE")),
+                conf=confidence,
             )
             if results:
                 resulttojson = json.loads(
@@ -307,7 +318,7 @@ class InferenceHandler:
         """
         label = label.replace("_", " ")
         if confidence < 0.5:
-            return None
+            return f"{label}, H E L P, "
         elif confidence < 0.6:
             return f", I think it's barely {label}"
         elif confidence < 0.7:
