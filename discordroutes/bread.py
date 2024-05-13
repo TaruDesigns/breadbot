@@ -33,30 +33,48 @@ async def send_bread_message(
         await attachment.save(filename)
         logger.info(f"Saved {attachment.filename} to {download_directory}")
         async with message.channel.typing():
+            # Set confidences based on whether this was an "override" request or default
             if overrideconfidence:
-                labels = await inferhandler.async_labels_from_imgpath(filename, 0.01)
+                breadpic_confidence = float(
+                    os.environ.get("OVERRIDE_DETECTION_CONFIDENCE")
+                )
+                breadlabel_confidence = float(
+                    os.environ.get("MIN_BREAD_LABEL_CONFIDENCE")
+                )
+                breadseg_confidence = float(os.environ.get("MIN_BREAD_SEG_CONFIDENCE"))
             else:
-                labels = await inferhandler.async_labels_from_imgpath(filename)
+                breadpic_confidence = float(
+                    os.environ.get("BREAD_DETECTION_CONFIDENCE")
+                )
+                breadlabel_confidence = float(
+                    os.environ.get("FILTER_BREAD_LABEL_CONFIDENCE")
+                )
+                breadseg_confidence = float(
+                    os.environ.get("FILTER_BREAD_SEG_CONFIDENCE")
+                )
+            # Compute labels, this also works as detection with confidence
+            labels = await inferhandler.async_labels_from_imgpath(filename)
+            # First we check if it is a bread picture at all
             if "bread" in labels.keys():
-                if (
-                    labels["bread"] > float(os.environ.get("MIN_BREAD_CONFIDENCE"))
-                    or overrideconfidence
-                ):
+                # And then we check if it is good enough of a bread picture to do segmentation on it
+                if labels["bread"] > breadpic_confidence:
                     breadcomment = inferhandler.get_message_content_from_labels(
-                        predictions=labels
+                        predictions=labels, min_confidence=breadlabel_confidence
                     )
+                    # We try to get the segmentation and roundness.
                     try:
                         (
                             out_img,
                             result,
                         ) = await inferhandler.async_segmentation_from_imgpath(
-                            input_img_path=filename
+                            input_img_path=filename, confidence=breadseg_confidence
                         )
                         roundcomment = inferhandler.get_message_from_roundness(
                             inferhandler.estimate_roundness_from_mask(result)
                         )
                         discord_file = discord.File(out_img)
                         breadcomment = breadcomment + roundcomment
+                    # TODO get the proper exception(s)
                     except Exception as e:
                         logger.error(e)
                         discord_file = discord.File(filename)
@@ -64,17 +82,20 @@ async def send_bread_message(
                             breadcomment
                             + ". I couldn't find the shape dough. (Get it? Though - dough ehehehehe)"
                         )
+                    # Send the image back with the comment
                     await message.channel.send(
                         file=discord_file,
                         content=breadcomment,
                         reference=message,
                     )
                 else:
+                    # Bread was found but not confident enough
                     await message.channel.send(
                         content="This is only very mildly bread. Metaphysical bread even.",
                         reference=message,
                     )
             else:
+                # Bread label wasn't found at all
                 await message.channel.send(
                     content="This isn't bread at all!",
                     reference=message,
@@ -144,12 +165,3 @@ async def check_areyousure_message(message: discord.Message, botuser: str) -> No
     if not any(trigger in message.content.lower() for trigger in trigger_texts):
         return False
     return True
-
-
-"""
-    # Check if there are any embedded pictures
-    if len(message.attachments) == 0:
-        logger.debug("Message without attachments")
-        return False
-    logger.debug("Are you sure message candidate detected")
-"""
