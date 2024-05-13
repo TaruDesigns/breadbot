@@ -31,10 +31,6 @@ COPY discordroutes ./discordroutes
 COPY yolov8/trainedmodels ./yolov8/trainedmodels
 COPY main.py .
 
-# Copy the .env file
-
-COPY ./.env .
-
 # Expose the port that FastAPI is running on
 EXPOSE 5987
 
