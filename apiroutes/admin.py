@@ -87,6 +87,22 @@ async def reinit_inference(
     return {"status": "ok"}
 
 
+@router.get("/checkcuda")
+async def check_cuda():
+    # Reinit the inference model with new parameters
+    import torch
+
+    try:
+        results = {
+            "cuda_available": torch.cuda.is_available(),
+            "cuda_device": torch.cuda.current_device(),
+            "cuda_device_count": torch.cuda.device_count(),
+        }
+    except:
+        results = {"cuda": "no"}
+    return results
+
+
 async def send_message(message, user_id: str = 206734328879775746) -> str:
     # This is just a test function
 
