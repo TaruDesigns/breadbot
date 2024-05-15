@@ -1,5 +1,6 @@
 import json
 import os
+from typing import Tuple
 
 import discord
 from dotenv import load_dotenv
@@ -16,16 +17,13 @@ allowed_bread_groups = json.loads(os.environ.get("DISCORD_BREAD_ROLE"))
 async def send_bread_message(
     message: discord.Message, overrideconfidence: bool = False
 ) -> None:
-    """Main "bread analyze" function -> Does all the compute
-    and sends a reply
+    """Main "bread analyze" function -> calls the compute function and sends message based on results
 
     Args:
         message (_type_): _description_
     """
-    # Lazy import to make sure it's always updated
-    from breadinfer.inference import inferhandler
 
-    # Download and save each attached picture
+    # Download and process each attached picture
     for attachment in message.attachments:
         filename = os.path.join(download_directory, attachment.filename)
         if not os.path.exists(download_directory):
@@ -33,73 +31,83 @@ async def send_bread_message(
         await attachment.save(filename)
         logger.info(f"Saved {attachment.filename} to {download_directory}")
         async with message.channel.typing():
-            # Set confidences based on whether this was an "override" request or default
-            if overrideconfidence:
-                breadpic_confidence = float(
-                    os.environ.get("OVERRIDE_DETECTION_CONFIDENCE")
+            # Compute: Get file (or None) and comment to be used
+            discord_file, breadcomment = await compute_bread_message(
+                filename=filename, overrideconfidence=overrideconfidence
+            )
+            # Send the image back with the comment
+            await message.channel.send(
+                file=discord_file, content=breadcomment, reference=message
+            )
+
+
+async def compute_bread_message(
+    filename: str, overrideconfidence: bool = False
+) -> Tuple[discord.File, str]:
+    """Main "bread compute" function -> Does all the compute calls
+    and returns the artifacts to be sent on the discord message
+
+    Args:
+        message (_type_): _description_
+    """
+    # Lazy import to make sure it's always updated
+    from breadinfer.inference import inferhandler
+
+    # Set confidences based on whether this was an "override" request or default
+    if overrideconfidence:
+        breadpic_confidence = float(os.environ.get("OVERRIDE_DETECTION_CONFIDENCE"))
+        breadlabel_confidence = float(os.environ.get("MIN_BREAD_LABEL_CONFIDENCE"))
+        breadseg_confidence = float(os.environ.get("MIN_BREAD_SEG_CONFIDENCE"))
+    else:
+        breadpic_confidence = float(os.environ.get("BREAD_DETECTION_CONFIDENCE"))
+        breadlabel_confidence = float(os.environ.get("FILTER_BREAD_LABEL_CONFIDENCE"))
+        breadseg_confidence = float(os.environ.get("FILTER_BREAD_SEG_CONFIDENCE"))
+    # Compute labels, this also works as detection with confidence
+    labels = await inferhandler.async_labels_from_imgpath(filename)
+    # First we check if it is a bread picture at all
+    if "bread" in labels.keys():
+        # And then we check if it is good enough of a bread picture to do segmentation on it
+        if labels["bread"] > breadpic_confidence:
+            breadcomment = inferhandler.get_message_content_from_labels(
+                predictions=labels, min_confidence=breadlabel_confidence
+            )
+            # We try to get the segmentation and roundness.
+            try:
+                (
+                    out_img,
+                    result,
+                ) = await inferhandler.async_segmentation_from_imgpath(
+                    input_img_path=filename, confidence=breadseg_confidence
                 )
-                breadlabel_confidence = float(
-                    os.environ.get("MIN_BREAD_LABEL_CONFIDENCE")
+                roundcomment = inferhandler.get_message_from_roundness(
+                    inferhandler.estimate_roundness_from_mask(result)
                 )
-                breadseg_confidence = float(os.environ.get("MIN_BREAD_SEG_CONFIDENCE"))
-            else:
-                breadpic_confidence = float(
-                    os.environ.get("BREAD_DETECTION_CONFIDENCE")
+                discord_file = discord.File(out_img)
+                breadcomment = breadcomment + roundcomment
+            # TODO get the proper exception(s)
+            except Exception as e:
+                logger.error(e)
+                discord_file = discord.File(filename)
+                breadcomment = (
+                    breadcomment
+                    + ". I couldn't find the shape dough. (Get it? Though - dough ehehehehe)"
                 )
-                breadlabel_confidence = float(
-                    os.environ.get("FILTER_BREAD_LABEL_CONFIDENCE")
-                )
-                breadseg_confidence = float(
-                    os.environ.get("FILTER_BREAD_SEG_CONFIDENCE")
-                )
-            # Compute labels, this also works as detection with confidence
-            labels = await inferhandler.async_labels_from_imgpath(filename)
-            # First we check if it is a bread picture at all
-            if "bread" in labels.keys():
-                # And then we check if it is good enough of a bread picture to do segmentation on it
-                if labels["bread"] > breadpic_confidence:
-                    breadcomment = inferhandler.get_message_content_from_labels(
-                        predictions=labels, min_confidence=breadlabel_confidence
-                    )
-                    # We try to get the segmentation and roundness.
-                    try:
-                        (
-                            out_img,
-                            result,
-                        ) = await inferhandler.async_segmentation_from_imgpath(
-                            input_img_path=filename, confidence=breadseg_confidence
-                        )
-                        roundcomment = inferhandler.get_message_from_roundness(
-                            inferhandler.estimate_roundness_from_mask(result)
-                        )
-                        discord_file = discord.File(out_img)
-                        breadcomment = breadcomment + roundcomment
-                    # TODO get the proper exception(s)
-                    except Exception as e:
-                        logger.error(e)
-                        discord_file = discord.File(filename)
-                        breadcomment = (
-                            breadcomment
-                            + ". I couldn't find the shape dough. (Get it? Though - dough ehehehehe)"
-                        )
-                    # Send the image back with the comment
-                    await message.channel.send(
-                        file=discord_file,
-                        content=breadcomment,
-                        reference=message,
-                    )
-                else:
-                    # Bread was found but not confident enough
-                    await message.channel.send(
-                        content="This is only very mildly bread. Metaphysical bread even.",
-                        reference=message,
-                    )
-            else:
-                # Bread label wasn't found at all
-                await message.channel.send(
-                    content="This isn't bread at all!",
-                    reference=message,
-                )
+            # Send the image back with the comment
+            file, content = discord_file, breadcomment
+            return file, content
+        else:
+            # Bread was found but not confident enough
+            file, content = (
+                None,
+                "This is only very mildly bread. Metaphysical bread even.",
+            )
+            return file, content
+        ...
+    else:
+        # Bread label wasn't found at all
+        file, content = None, "This isn't bread at all!"
+        return file, content
+        ...
 
 
 async def check_bread_message(

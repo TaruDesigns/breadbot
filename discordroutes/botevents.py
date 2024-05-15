@@ -33,16 +33,18 @@ async def on_message(message):
             message=message, botuser=bot.user
         ):
             logger.debug("Are you sure message! Do everything again!")
+            # Timeline is: User message with bread pic -> Bot reply -> User reply to bot reply ; Invert to get OG message
             ogmessageref = message.reference.resolved.reference
+            # For some reason it won't automatically resolve all replies so I have to do it manually
             ogmessage = await get_message_by_id(
                 guild_id=ogmessageref.guild_id,
                 channel_id=ogmessageref.channel_id,
                 message_id=ogmessageref.message_id,
             )
-            if True or await breadroute.check_bread_message(message=ogmessage):
-                await breadroute.send_bread_message(
-                    message=ogmessage, overrideconfidence=True
-                )
+            # TODO double check that it the og message is a bread message?
+            await breadroute.send_bread_message(
+                message=ogmessage, overrideconfidence=True
+            )
 
     except Exception as e:
         logger.error(e)
