@@ -46,7 +46,9 @@ class InferenceHandler:
             self.http_seg_model = http_seg_model
         ...
 
-    async def async_labels_from_imgpath(self, input_img_path: str = None):
+    async def async_labels_from_imgpath(
+        self, input_img_path: str = None, confidence: float = None
+    ):
         """Async helper to run inference on detection(labels)
 
         Args:
@@ -57,11 +59,14 @@ class InferenceHandler:
         """
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(
-            None, self.labels_from_imgpath, input_img_path
+            None, self.labels_from_imgpath, input_img_path, confidence
         )
 
     async def async_segmentation_from_imgpath(
-        self, input_img_path: str = None, output_img_path: str = None
+        self,
+        input_img_path: str = None,
+        output_img_path: str = None,
+        confidence: float = None,
     ) -> Tuple[str, Dict]:
         """Async helper to run inference on segmentation
 
@@ -74,11 +79,18 @@ class InferenceHandler:
         """
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(
-            None, self.segmentation_from_imgpath, input_img_path, output_img_path
+            None,
+            self.segmentation_from_imgpath,
+            input_img_path,
+            output_img_path,
+            confidence,
         )
 
     def segmentation_from_imgpath(
-        self, input_img_path: str = None, output_img_path: str = None
+        self,
+        input_img_path: str = None,
+        output_img_path: str = None,
+        confidence: float = None,
     ) -> Tuple[str, dict]:
         """Creates segmentation image
         Uses model from https://universe.roboflow.com/school-dkgod/bread-segmentation-hfhm8/model/4
@@ -97,6 +109,8 @@ class InferenceHandler:
 
         if input_img_path is None:
             raise ValueError("Invalid image")
+        if confidence is None:
+            confidence = float(os.environ.get("MIN_BREAD_SEG_CONFIDENCE"))
         if output_img_path is None:
             # Default to standard output folder
             outputfolder = os.path.join(os.getcwd(), "output", "segmented")
@@ -115,7 +129,7 @@ class InferenceHandler:
                 input_img_path,
                 save=True,
                 device="cpu",
-                conf=float(os.environ.get("MIN_BREAD_CONFIDENCE")),
+                conf=confidence,
                 project="output",
                 name="segmented",
                 exist_ok=True,
@@ -139,9 +153,7 @@ class InferenceHandler:
             result = self.http_client.infer(
                 input_img_path, model_id=self.http_seg_model
             )
-
             image = cv2.imread(input_img_path)
-
             annotated_image = self.annotate_mask(image=image, result=result)
             cv2.imwrite(output_img_path, annotated_image)
             logger.info(f"Written image for Segmentation: {output_img_path}")
@@ -246,7 +258,9 @@ class InferenceHandler:
                 )
             return reshaped_image
 
-    def labels_from_imgpath(self, input_img_path: str = None) -> Dict[str, float]:
+    def labels_from_imgpath(
+        self, input_img_path: str = None, confidence: float = None
+    ) -> Dict[str, float]:
         """Generate labels for the image
 
         Args:
@@ -261,6 +275,8 @@ class InferenceHandler:
         # https://universe.roboflow.com/class-tu4kk/bread-seg/model/7
         if input_img_path is None:
             raise ValueError("invalid image")
+        if confidence is None:
+            confidence = float(os.environ.get("MIN_BREAD_LABEL_CONFIDENCE"))
         if self._local:
             # Compute inference with local model
             logger.info(f"Computing label predictions for: {input_img_path}")
@@ -268,7 +284,7 @@ class InferenceHandler:
                 input_img_path,
                 save=False,
                 device="cpu",
-                conf=float(os.environ.get("MIN_BREADLABEL_CONFIDENCE")),
+                conf=confidence,
             )
             if results:
                 resulttojson = json.loads(
@@ -296,7 +312,7 @@ class InferenceHandler:
             return predictions
 
     def map_confidence_to_sentiment(self, confidence: float, label: str) -> str:
-        """Translate a confidence percentage to a text to indicate how accurate the elmeent is
+        """Translate a confidence percentage to a text to indicate how accurate the element is
 
         Args:
             confidence (float): Confidence value
@@ -307,13 +323,13 @@ class InferenceHandler:
         """
         label = label.replace("_", " ")
         if confidence < 0.5:
-            return None
+            return f"{label}, H E L P, "
         elif confidence < 0.6:
-            return f", I think it's barely {label}"
+            return f", just a bit {label}"
         elif confidence < 0.7:
-            return f"just a bit {label}"
+            return f"reasonably {label}"
         elif confidence < 0.8:
-            return f"not that sure about it being {label}"
+            return f"probably {label}"
         elif confidence < 0.9:
             return f"fairly confident that it's {label}"
         elif confidence < 1.0:
@@ -322,7 +338,7 @@ class InferenceHandler:
             return f"Confirmed that it's {label}"
 
     def get_message_content_from_labels(
-        self, predictions: Dict[str, float] = None
+        self, predictions: Dict[str, float] = None, min_confidence: float = None
     ) -> str:
         """Generate a message based on the input labels
 
@@ -332,17 +348,35 @@ class InferenceHandler:
         Returns:
             str: Generated message to be used when sending
         """
+        if min_confidence is None:
+            min_confidence = os.environ.get("FILTER_BREAD_LABEL_CONFIDENCE")
         labeltext = "This is certainly bread! "
         for label, confidence in predictions.items():
-            labeltext = (
-                labeltext
-                + self.map_confidence_to_sentiment(confidence=confidence, label=label)
-                + " "
-            )
+            if confidence >= min_confidence:
+                labeltext = (
+                    labeltext
+                    + self.map_confidence_to_sentiment(
+                        confidence=confidence, label=label
+                    )
+                    + " "
+                )
         logger.debug(labeltext)
         return labeltext
 
     def estimate_roundness_from_mask(self, results) -> float:
+        """Estimates roundness from mask, based on how close it is to a perfect circunscribed circle
+
+        Args:
+            results (float): percentage (0 to 1) of roundness
+
+        Raises:
+            ValueError: _description_
+            ValueError: _description_
+            ValueError: _description_
+
+        Returns:
+            float: _description_
+        """
         if results and results[0].masks is not None:
             orig_shape = results[0].masks.orig_shape
             mask = results[0].masks.xy

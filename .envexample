@@ -1,6 +1,19 @@
-MIN_BREAD_CONFIDENCE=0.75
-MIN_BREADLABEL_CONFIDENCE=0.5
-DISCORD_TOKEN=
-DISCORD_BREAD_CHANNELS=
-DISCORD_BREAD_ROLE=
+# Roboflow api settings - mostly unused now
+ROBOFLOW_API_KEY=cool_api_key
+ROFOBLOW_ENDPOINT=https://outline.roboflow.com
+# Bread inference confidence settings
+# MIN_LABEL and MIN_SEG need to exist for the inference to make any sense. All values are retrieves and filtered later, this is just the default value to get every result that makes even some sense.
+MIN_BREAD_LABEL_CONFIDENCE=0.05
+MIN_BREAD_SEG_CONFIDENCE=0.05
+# FILTERED_confidences to filter results after they've been detected
+FILTER_BREAD_LABEL_CONFIDENCE=0.5
+FILTER_BREAD_SEG_CONFIDENCE=0.40
+# The value that we actually check to see if it's a bread pic (confidence of "bread" label)
+BREAD_DETECTION_CONFIDENCE=0.5
+# Should always be lower than BREAD_DETECTION_CONFIDENCE
+OVERRIDE_DETECTION_CONFIDENCE=0.1
+# Discord settings
+DISCORD_TOKEN=sometoken
+DISCORD_BREAD_CHANNELS=[nice_integer_you_got_there,nice_integer_you_got_there]
+DISCORD_BREAD_ROLE=[nice_integer_you_got_there]
 DISCORD_DOWNLOAD_DIRECTORY=downloads

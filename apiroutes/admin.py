@@ -33,19 +33,40 @@ async def send_dm(msg: str, user_id: str = 206734328879775746):
 
 @router.post("/setinferconfidences")
 async def set_infer_confidence(
-    min_breadlabel_confidence: float = 0.50, min_bread_confidence: float = 0.70
+    MIN_BREAD_LABEL_CONFIDENCE: Optional[float] = None,
+    MIN_BREAD_SEG_CONFIDENCE: Optional[float] = None,
+    FILTER_BREAD_LABEL_CONFIDENCE: Optional[float] = None,
+    FILTER_BREAD_SEG_CONFIDENCE: Optional[float] = None,
+    BREAD_DETECTION_CONFIDENCE: Optional[float] = None,
+    OVERRIDE_DETECTION_CONFIDENCE: Optional[float] = None,
 ):
     """Endpoint to set bread inference confidences.Note that this will NOT reinstantiate the inference handler
 
     Args:
-        min_breadlabel_confidence (float, optional): _description_. Defaults to 0.50.
-        min_bread_confidence (float, optional): _description_. Defaults to 0.70.
+        MIN_BREAD_LABEL_CONFIDENCE (float, optional): Float, 0 to 1
+        MIN_BREAD_SEG_CONFIDENCE (float, optional): Float, 0 to 1
+        FILTER_BREAD_LABEL_CONFIDENCE (float, optional): Float, 0 to 1
+        FILTER_BREAD_SEG_CONFIDENCE (float, optional): Float, 0 to 1
+        BREAD_DETECTION_CONFIDENCE (float, optional): Float, 0 to 1
+        OVERRIDE_DETECTION_CONFIDENCE (float, optional): Float, 0 to 1
 
     Returns:
-        _type_: _description_
+        json: status ok
     """
-    os.environ["MIN_BREADLABEL_CONFIDENCE"] = str(min_breadlabel_confidence)
-    os.environ["MIN_BREAD_CONFIDENCE"] = str(min_bread_confidence)
+
+    if MIN_BREAD_LABEL_CONFIDENCE is not None:
+        os.environ["MIN_BREAD_LABEL_CONFIDENCE"] = str(MIN_BREAD_LABEL_CONFIDENCE)
+    if MIN_BREAD_SEG_CONFIDENCE is not None:
+        os.environ["MIN_BREAD_SEG_CONFIDENCE"] = str(MIN_BREAD_SEG_CONFIDENCE)
+    if FILTER_BREAD_LABEL_CONFIDENCE is not None:
+        os.environ["FILTER_BREAD_LABEL_CONFIDENCE"] = str(FILTER_BREAD_LABEL_CONFIDENCE)
+    if FILTER_BREAD_SEG_CONFIDENCE is not None:
+        os.environ["FILTER_BREAD_SEG_CONFIDENCE"] = str(FILTER_BREAD_SEG_CONFIDENCE)
+    if BREAD_DETECTION_CONFIDENCE is not None:
+        os.environ["BREAD_DETECTION_CONFIDENCE"] = str(BREAD_DETECTION_CONFIDENCE)
+    if OVERRIDE_DETECTION_CONFIDENCE is not None:
+        os.environ["OVERRIDE_DETECTION_CONFIDENCE"] = str(OVERRIDE_DETECTION_CONFIDENCE)
+
     return {"status": "ok"}
 
 
