@@ -1,0 +1,128 @@
+import json
+import os
+import sqlite3
+from contextlib import contextmanager
+
+import discord
+from loguru import logger
+
+# Connect to the SQLite database (or create it if it doesn't exist)
+
+dbdatapath = os.path.join("dbdata", "messages.db")
+
+
+@contextmanager
+def sqlite_connection(db_path=dbdatapath):
+    conn = None
+    cursor = None
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        yield cursor
+        conn.commit()
+    except sqlite3.Error as e:
+        logger.error(f"SQLite error: {e}")
+        if conn:
+            conn.rollback()
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
+
+def create_db():
+    # Define the SQL command to create the "messages" table
+    create_table_sql = """
+    CREATE TABLE IF NOT EXISTS messages (
+        ogmessage_id INTEGER PRIMARY KEY,
+        replymessage_jump_url TEXT,
+        replymessage_id INTEGER,
+        author_id INTEGER,
+        channel_id INTEGER,
+        guild_id INTEGER,
+        roundness REAL,
+        labels_json TEXT
+    )
+    """
+    with sqlite_connection() as cursor:
+        # Execute the SQL command
+        cursor.execute(create_table_sql)
+
+
+def upsert_message_stats(ogmessage_id: int, roundness: float, labels_json: dict):
+    logger.info(f"Upserting: {ogmessage_id}, {roundness}, {labels_json}")
+    # Convert the labels_json dictionary to a JSON string
+    labels_json_str = json.dumps(labels_json)
+
+    # Define the UPSERT SQL command
+    upsert_sql = """
+    INSERT INTO messages (ogmessage_id, roundness, labels_json)
+    VALUES (?, ?, ?)
+    ON CONFLICT(ogmessage_id) DO UPDATE SET
+        roundness=excluded.roundness,
+        labels_json=excluded.labels_json
+    """
+
+    with sqlite_connection() as cursor:
+        cursor.execute(upsert_sql, (ogmessage_id, roundness, labels_json_str))
+
+
+def upsert_message_discordinfo(
+    ogmessage_id: int,
+    replymessage_jump_url: str,
+    replymessage_id: int,
+    author_id: int,
+    channel_id: int,
+    guild_id: int,
+):
+    logger.info(
+        f"Upserting: {ogmessage_id}, {replymessage_jump_url}, {replymessage_id}, {author_id}, {channel_id}, {guild_id}"
+    )
+    # Define the UPSERT SQL command
+    upsert_sql = """
+    INSERT INTO messages (ogmessage_id, replymessage_jump_url, replymessage_id, author_id, channel_id, guild_id)
+    VALUES (?, ?, ?, ?, ?, ?)
+    ON CONFLICT(ogmessage_id) DO UPDATE SET
+        replymessage_jump_url=excluded.replymessage_jump_url,
+        replymessage_id=excluded.replymessage_id,
+        author_id=excluded.author_id,
+        channel_id=excluded.channel_id,
+        guild_id=excluded.guild_id
+    """
+
+    with sqlite_connection() as cursor:
+        cursor.execute(
+            upsert_sql,
+            (
+                ogmessage_id,
+                replymessage_jump_url,
+                replymessage_id,
+                author_id,
+                channel_id,
+                guild_id,
+            ),
+        )
+
+
+if __name__ == "__main__":
+    # create db
+    create_db()
+    ogmessageid = 231231
+    upsert_message_stats(
+        ogmessageid,
+        0.77420374198825,
+        {
+            "bread": 0.80332,
+            "oblong": 0.68173,
+            "no_seeds": 0.33406,
+            "raised": 0.31631,
+            "white": 0.22345,
+            "cooked": 0.13072,
+            "round": 0.11216,
+            "baguette": 0.05641,
+        },
+    )
+    upsert_message_discordinfo(
+        ogmessageid, "http://google.com", 123214, 12313, 13213, 123123
+    )

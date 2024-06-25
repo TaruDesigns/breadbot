@@ -6,6 +6,8 @@ import discord
 from dotenv import load_dotenv
 from loguru import logger
 
+from db.models import upsert_message_stats
+
 load_dotenv()
 download_directory = os.path.join(
     os.getcwd(), os.environ.get("DISCORD_DOWNLOAD_DIRECTORY")
@@ -16,7 +18,7 @@ allowed_bread_groups = json.loads(os.environ.get("DISCORD_BREAD_ROLE"))
 
 async def send_bread_message(
     message: discord.Message, overrideconfidence: bool = False
-) -> None:
+) -> Tuple[discord.Message, dict, int]:
     """Main "bread analyze" function -> calls the compute function and sends message based on results
 
     Args:
@@ -33,16 +35,19 @@ async def send_bread_message(
         async with message.channel.typing():
             # Compute: Get file (or None) and comment to be used
             discord_file, breadcomment = await compute_bread_message(
-                filename=filename, overrideconfidence=overrideconfidence
+                filename=filename,
+                overrideconfidence=overrideconfidence,
+                ogmessage_id=message.id,
             )
             # Send the image back with the comment
-            await message.channel.send(
+            sentmessage = await message.channel.send(
                 file=discord_file, content=breadcomment, reference=message
             )
+            return sentmessage
 
 
 async def compute_bread_message(
-    filename: str, overrideconfidence: bool = False
+    filename: str, overrideconfidence: bool = False, ogmessage_id: int = 1
 ) -> Tuple[discord.File, str]:
     """Main "bread compute" function -> Does all the compute calls
     and returns the artifacts to be sent on the discord message
@@ -79,11 +84,21 @@ async def compute_bread_message(
                 ) = await inferhandler.async_segmentation_from_imgpath(
                     input_img_path=filename, confidence=breadseg_confidence
                 )
-                roundcomment = inferhandler.get_message_from_roundness(
-                    inferhandler.estimate_roundness_from_mask(result)
-                )
+                # We get it here to use it later on and also save it on db
+                roundness = inferhandler.estimate_roundness_from_mask(result)
+                roundcomment = inferhandler.get_message_from_roundness(roundness)
                 discord_file = discord.File(out_img)
                 breadcomment = breadcomment + roundcomment
+                try:
+                    upsert_message_stats(
+                        ogmessage_id=ogmessage_id,
+                        roundness=roundness,
+                        labels_json=labels,
+                    )
+                except Exception as e:
+                    logger.error(
+                        f" Couldn't upsert roundness+label data for {ogmessage_id}: {e}"
+                    )
             # TODO get the proper exception(s)
             except Exception as e:
                 logger.error(e)

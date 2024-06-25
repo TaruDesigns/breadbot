@@ -175,3 +175,5 @@ yolov8/*
 
 output/
 localyolooutput/
+
+*.db
