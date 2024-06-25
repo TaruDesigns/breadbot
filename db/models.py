@@ -31,7 +31,7 @@ def sqlite_connection(db_path=dbdatapath):
             conn.close()
 
 
-def create_db():
+def create_db() -> None:
     # Define the SQL command to create the "messages" table
     create_table_sql = """
     CREATE TABLE IF NOT EXISTS messages (
@@ -50,7 +50,9 @@ def create_db():
         cursor.execute(create_table_sql)
 
 
-def upsert_message_stats(ogmessage_id: int, roundness: float, labels_json: dict):
+def upsert_message_stats(
+    ogmessage_id: int, roundness: float, labels_json: dict
+) -> None:
     logger.info(f"Upserting: {ogmessage_id}, {roundness}, {labels_json}")
     # Convert the labels_json dictionary to a JSON string
     labels_json_str = json.dumps(labels_json)
@@ -75,7 +77,7 @@ def upsert_message_discordinfo(
     author_id: int,
     channel_id: int,
     guild_id: int,
-):
+) -> None:
     logger.info(
         f"Upserting: {ogmessage_id}, {replymessage_jump_url}, {replymessage_id}, {author_id}, {channel_id}, {guild_id}"
     )
@@ -105,13 +107,58 @@ def upsert_message_discordinfo(
         )
 
 
+def get_minmax_roundness_byuserid(user_id: int) -> dict:
+    # Returns min and max roundness of specified user, returning the ogmessage_id and jump_url as well
+    logger.info(f"Fetching min and max roundness for user_id: {user_id}")
+
+    # Define the SQL query to fetch min and max roundness, ogmessage_id, and jump_url
+    query = """
+    SELECT roundness, ogmessage_id, replymessage_jump_url
+    FROM messages
+    WHERE author_id = ?
+    ORDER BY roundness ASC, ogmessage_id ASC
+    """
+
+    # Define the SQL query to fetch min and max roundness, ogmessage_id, and jump_url
+    query = """
+    SELECT roundness, ogmessage_id, replymessage_jump_url
+    FROM messages
+    WHERE author_id = ?
+    ORDER BY roundness ASC, ogmessage_id ASC
+    """
+
+    result = {
+        "min_roundness": None,
+        "max_roundness": None,
+        "min_roundness_url": None,
+        "max_roundness_url": None,
+        "min_roundness_ogmessage_id": None,
+        "max_roundness_ogmessage_id": None,
+    }
+
+    with sqlite_connection() as cursor:
+        cursor.execute(query, (user_id,))
+        rows = cursor.fetchall()
+        if rows:
+            result["min_roundness"] = rows[0][0]
+            result["min_roundness_ogmessage_id"] = rows[0][1]
+            result["min_roundness_url"] = rows[0][2]
+
+            result["max_roundness"] = rows[-1][0]
+            result["max_roundness_ogmessage_id"] = rows[-1][1]
+            result["max_roundness_url"] = rows[-1][2]
+
+    return result
+
+
 if __name__ == "__main__":
     # create db
     create_db()
+    """
     ogmessageid = 231231
     upsert_message_stats(
         ogmessageid,
-        0.77420374198825,
+        None,
         {
             "bread": 0.80332,
             "oblong": 0.68173,
@@ -126,3 +173,6 @@ if __name__ == "__main__":
     upsert_message_discordinfo(
         ogmessageid, "http://google.com", 123214, 12313, 13213, 123123
     )
+    res = get_minmax_roundness_byuserid(206734328879775746)
+    a = 5
+"""
