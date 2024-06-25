@@ -1,7 +1,7 @@
 - [1. BreadBot](#1-breadbot)
   - [1.1. Why](#11-why)
   - [1.2. How](#12-how)
-- [2. Planned features](#2-planned-features)
+- [2. Features (planned and developed)](#2-features-planned-and-developed)
 - [3. Running it locally](#3-running-it-locally)
   - [3.1. Using docker](#31-using-docker)
   - [3.2 Using venv](#32-using-venv)
@@ -9,7 +9,7 @@
 
 # 1. BreadBot
 
-Discord bot that sees your bread pics and confirms that it is, in fact, bread, using computer vision. Based on discord.py.
+Discord bot that sees your bread pics and confirms that it is, in fact, bread, using computer vision. Based on discord.py using YOLOv8
 
 ## 1.1. Why
 
@@ -19,13 +19,12 @@ It's a fun project
 
 Bot reads messages and filters based on channel and user that sent the message. The attachments are downloaded and inference using YOLOv8 is performed to estimate labels and segmentation. Bot replies to the original message with a descritpion and segmented image.
 
-# 2. Planned features
+# 2. Features (planned and developed)
 
-- Size estimation of bread
-~~- Roundness estimation of bread~~
+~~- Roundness estimation of bread~~ Done
 - Admin panel (based on FastAPI) -> In Progress, basic endpoints created
 - ~~Proper async inference with a "BreadBot is typing..." message for better UX~~ Done
-- Optimize inference models
+- Optimize inference models -> Planned
 
 # 3. Running it locally
 
@@ -43,12 +42,12 @@ Alternatively, you can use docker compose:
 ```yaml
 services:
   breadbot:
-    build: .
-    image: taruelec/breadbot
+    build: . # Use this for development
+    image: taruelec/breadbot # Use this for deployment
     ports:
       - "5987:5987"
-    volumes:
-      - "./:/app"
+    volumes: # Only use this for local development with autoreload
+      - "./:/app" # Only use this for local development with autoreload
     env_file:
       - .env
 ``` 
