@@ -89,16 +89,7 @@ async def compute_bread_message(
                 roundcomment = inferhandler.get_message_from_roundness(roundness)
                 discord_file = discord.File(out_img)
                 breadcomment = breadcomment + roundcomment
-                try:
-                    upsert_message_stats(
-                        ogmessage_id=ogmessage_id,
-                        roundness=roundness,
-                        labels_json=labels,
-                    )
-                except Exception as e:
-                    logger.error(
-                        f" Couldn't upsert roundness+label data for {ogmessage_id}: {e}"
-                    )
+
             # TODO get the proper exception(s)
             except Exception as e:
                 logger.error(e)
@@ -107,6 +98,13 @@ async def compute_bread_message(
                     breadcomment
                     + ". I couldn't find the shape dough. (Get it? Though - dough ehehehehe)"
                 )
+                roundness = None
+            # Insert data in DB for rankings
+            upsert_message_stats(
+                ogmessage_id=ogmessage_id,
+                roundness=roundness,
+                labels_json=labels,
+            )
             # Send the image back with the comment
             file, content = discord_file, breadcomment
             return file, content

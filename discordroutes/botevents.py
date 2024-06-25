@@ -3,7 +3,7 @@ import logging
 import discord
 from loguru import logger
 
-from db.models import get_message_data
+from db.models import get_minmax_roundness_byuserid, upsert_message_discordinfo
 from discordroutes import bread as breadroute
 
 # Discord Init
@@ -15,7 +15,7 @@ bot = discord.Client(intents=intents)
 
 
 @bot.event
-async def on_message(message):
+async def on_message(message: discord.Message):
     logger.debug("Received message!")
     if message.author == bot.user:
         # This is just to avoid endlessly triggering itself
@@ -23,6 +23,16 @@ async def on_message(message):
     if message.content.startswith("$hello"):
         # Just a test/health check function
         await message.channel.send(content="Hello!", reference=message)
+    if message.content.startswith("$breadstats --self"):
+        results = get_minmax_roundness_byuserid(message.author.id)
+        reply_content = f""""
+                            Hello {message.author.name}:
+                            Min roundness:  {results["min_roundness"]} on message: {results["min_roundness_url"]},
+                            Max roundness {results["max_roundness"]} on message: {results["max_roundness_url"]}
+                            """
+        await message.channel.send(content=reply_content, reference=message)
+    if message.content.startswith("$breadstats --top"):
+        await message.channel.send(content="Not yet", reference=message)
 
     # Check Bread Candidate Message
     try:
@@ -30,16 +40,14 @@ async def on_message(message):
             sentmessage = await breadroute.send_bread_message(
                 message=message, overrideconfidence=False
             )
-            # Get message data and store in DB
-            messagedata = get_message_data(
-                message.id,
-                sentmessage.jump_url,
-                sentmessage.id,
-                message.author.id,
-                message.channel.id,
-                message.guild.id,
-                None,
-                None,
+            # Store data in DB
+            upsert_message_discordinfo(
+                ogmessage_id=message.id,
+                replymessage_jump_url=sentmessage.jump_url,
+                replymessage_id=sentmessage.id,
+                author_id=message.author.id,
+                channel_id=message.channel.id,
+                guild_id=message.guild.id,
             )
         elif await breadroute.check_areyousure_message(
             message=message, botuser=bot.user
@@ -57,20 +65,17 @@ async def on_message(message):
             sentmessage = await breadroute.send_bread_message(
                 message=ogmessage, overrideconfidence=True
             )
-            # Get message data to store in DB
-            messagedata = get_message_data(
-                message.id,
-                sentmessage.jump_url,
-                sentmessage.id,
-                message.author.id,
-                message.channel.id,
-                message.guild.id,
-                None,
-                None,
+            # Store data in DB
+            upsert_message_discordinfo(
+                ogmessage_id=ogmessage.id,
+                replymessage_jump_url=sentmessage.jump_url,
+                replymessage_id=sentmessage.id,
+                author_id=message.author.id,
+                channel_id=message.channel.id,
+                guild_id=message.guild.id,
             )
 
     except Exception as e:
-        logger.error(e)
         logger.error(e)
 
 
