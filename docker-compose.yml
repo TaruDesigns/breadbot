@@ -1,7 +1,7 @@
 services:
   breadbot:
-    #build: . # For local development/deployment
-    image: taruelec/breadbot:latest # Use the published image
+    build: . # For local development/deployment
+    #image: taruelec/breadbot:latest # Use the published image
     ports:
       - "5987:5987"
     volumes:

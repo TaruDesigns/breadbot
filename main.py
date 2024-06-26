@@ -11,6 +11,7 @@ from fastapi.responses import RedirectResponse
 from loguru import logger
 
 from apiroutes import api_router
+from db.models import create_db
 from discordroutes.botevents import bot
 
 load_dotenv()
@@ -28,7 +29,9 @@ logger.add(sys.stdout, level="DEBUG")
 async def startup_event():  # this function will run before the main API starts
     asyncio.create_task(bot.start(os.environ.get("DISCORD_TOKEN")))
     await asyncio.sleep(4)  # optional sleep for established connection with discord
-    print(f"{bot.user} has connected to Discord!")
+    logger.info(f"{bot.user} has connected to Discord!")
+    create_db()
+    logger.info("Started DB")
 
 
 @app.get("/")

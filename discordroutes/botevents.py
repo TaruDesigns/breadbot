@@ -3,7 +3,11 @@ import logging
 import discord
 from loguru import logger
 
-from db.models import get_minmax_roundness_byuserid, upsert_message_discordinfo
+from db.models import (
+    get_minmax_roundness_byuserid,
+    get_minmax_roundness_leaderboard,
+    upsert_message_discordinfo,
+)
 from discordroutes import bread as breadroute
 
 # Discord Init
@@ -25,14 +29,45 @@ async def on_message(message: discord.Message):
         await message.channel.send(content="Hello!", reference=message)
     if message.content.startswith("$breadstats --self"):
         results = get_minmax_roundness_byuserid(message.author.id)
-        reply_content = f""""
+        min_roundness_percent = (
+            round(results["min_roundness"] * 100, 2)
+            if results["min_roundness"] is not None
+            else 0
+        )
+        max_roundness_percent = (
+            round(results["max_roundness"] * 100, 2)
+            if results["max_roundness"] is not None
+            else 0
+        )
+        reply_content = f"""
                             Hello {message.author.name}:
-                            Min roundness:  {results["min_roundness"]} on message: {results["min_roundness_url"]},
-                            Max roundness {results["max_roundness"]} on message: {results["max_roundness_url"]}
+                            Min roundness:  {min_roundness_percent:.2f}% on message: {results["min_roundness_url"]},
+                            Max roundness {max_roundness_percent:.2f}% on message: {results["max_roundness_url"]}
                             """
         await message.channel.send(content=reply_content, reference=message)
     if message.content.startswith("$breadstats --top"):
-        await message.channel.send(content="Not yet", reference=message)
+        results = get_minmax_roundness_leaderboard(3)
+        reply_content_max = "Top 3:"
+        for idx, val in enumerate(results["max_roundness"]):
+            ogmessage: discord.Message = await get_message_by_id(
+                val["guild_id"], val["channel_id"], val["ogmessage_id"]
+            )
+            roundness_percent = (
+                round(val["roundness"] * 100, 2) if val["roundness"] is not None else 0
+            )
+            reply_content_max = f"""{reply_content_max}\n #{idx + 1}: {ogmessage.author.name} with {roundness_percent:.2f}% on message {val["jump_url"]}"""
+        reply_content_min = "Worst 3:"
+        for idx, val in enumerate(results["min_roundness"]):
+            ogmessage: discord.Message = await get_message_by_id(
+                val["guild_id"], val["channel_id"], val["ogmessage_id"]
+            )
+            roundness_percent = (
+                round(val["roundness"] * 100, 2) if val["roundness"] is not None else 0
+            )
+            reply_content_min = f"""{reply_content_min}\n #{idx + 1}: {ogmessage.author.name} with {roundness_percent:.2f}% on message {val["jump_url"]}"""
+
+        reply_content = f"{reply_content_max}\n{reply_content_min}"
+        await message.channel.send(content=reply_content, reference=message)
 
     # Check Bread Candidate Message
     try:
@@ -87,13 +122,23 @@ async def get_message_by_id(guild_id: int, channel_id: int, message_id: int):
 
     channel = guild.get_channel(channel_id)
     if channel is None:
-        print("Channel not found")
+        logger.info("Channel not found")
         raise ValueError("Channel not found")
 
     message = await channel.fetch_message(message_id)
     return message
 
 
+async def get_user_by_id(user_id: int):
+    user = await bot.fetch_use(user_id)
+    return user
+
+
 @bot.event
 async def on_ready():
-    print(f"We have logged in as {bot.user}")
+    logger.info(f"We have logged in as {bot.user}")
+
+
+@bot.event
+async def on_ready():
+    logger.info(f"We have logged in as {bot.user}")

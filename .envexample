@@ -17,3 +17,5 @@ DISCORD_TOKEN=sometoken
 DISCORD_BREAD_CHANNELS=[nice_integer_you_got_there,nice_integer_you_got_there]
 DISCORD_BREAD_ROLE=[nice_integer_you_got_there]
 DISCORD_DOWNLOAD_DIRECTORY=downloads
+# Database (SQLite) path
+DBDATAPATH=dbdata/messages.db
