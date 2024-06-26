@@ -6,5 +6,7 @@ services:
       - "5987:5987"
     volumes:
       - "./:/app"
+    #volumes: Recommended for deployment
+    #  - ".dbdata/:/app/dbdata"
     env_file:
       - .env
