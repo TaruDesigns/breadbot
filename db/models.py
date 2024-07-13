@@ -43,6 +43,12 @@ def create_db() -> None:
         roundness REAL,
         labels_json TEXT
     )
+    
+    CREATE TABLE IF NOT EXISTS discordusers (
+        author_id INTEGER,
+        author_nickname TEXT,
+        author_name TEXT
+    )    
     """
     if not os.path.exists(os.path.dirname(dbdatapath)):
         os.makedirs(os.path.dirname(dbdatapath))
@@ -54,7 +60,7 @@ def create_db() -> None:
 def upsert_message_stats(
     ogmessage_id: int, roundness: float, labels_json: dict
 ) -> None:
-    logger.info(f"Upserting: {ogmessage_id}, {roundness}, {labels_json}")
+    logger.info(f"Upserting: {ogmessage_id}, {roundness}, {labels_json} in messages")
     # Convert the labels_json dictionary to a JSON string
     labels_json_str = json.dumps(labels_json)
 
@@ -69,6 +75,40 @@ def upsert_message_stats(
 
     with sqlite_connection() as cursor:
         cursor.execute(upsert_sql, (ogmessage_id, roundness, labels_json_str))
+
+
+def upsert_user_info(author_id: int, author_nickname: str, author_name: str):
+    # Inserts the author info to cache results so we don't have to get info from discord all the time
+    logger.info(
+        f"Upserting: {author_id}, {author_nickname}, {author_name} in discordusers"
+    )
+    # Convert the labels_json dictionary to a JSON string
+    # Define the UPSERT SQL command
+    upsert_sql = """
+    INSERT INTO discordusers (author_id, author_nickname, author_name)
+    VALUES (?, ?, ?)
+    ON CONFLICT(author_id) DO UPDATE SET
+        author_nickname=excluded.author_nickname,
+        author_name=excluded.author_name
+    """
+
+    with sqlite_connection() as cursor:
+        cursor.execute(upsert_sql, (author_id, author_nickname, author_name))
+
+
+def select_user_info(author_id: int):
+    logger.trace(f"Getting user info from {author_id}")
+    select_sql = "SELECT author_id, author_nickname, author_name FROM discordusers WHERE author_id = ?"
+    with sqlite_connection() as cursor:
+        cursor.execute(select_sql, (author_id,))
+        row = cursor.fetchone()
+        if row:
+            return {
+                "author_id": row[0],
+                "author_nickname": row[1],
+                "author_name": row[2],
+            }
+        return None
 
 
 def upsert_message_discordinfo(
@@ -160,6 +200,7 @@ def get_minmax_roundness_leaderboard(n: int) -> dict:
     min_roundness_query = """
     SELECT roundness, ogmessage_id, replymessage_jump_url, author_id, guild_id, channel_id
     FROM messages
+    WHERE roundness not null
     ORDER BY roundness ASC
     LIMIT ?
     """
@@ -167,6 +208,7 @@ def get_minmax_roundness_leaderboard(n: int) -> dict:
     max_roundness_query = """
     SELECT roundness, ogmessage_id, replymessage_jump_url, author_id, guild_id, channel_id
     FROM messages
+    WHERE roundness not null
     ORDER BY roundness DESC
     LIMIT ?
     """
