@@ -26,6 +26,7 @@ async def send_bread_message(
     """
 
     # Download and process each attached picture
+    sentmessages = []
     for attachment in message.attachments:
         filename = os.path.join(download_directory, attachment.filename)
         if not os.path.exists(download_directory):
@@ -43,7 +44,8 @@ async def send_bread_message(
             sentmessage = await message.channel.send(
                 file=discord_file, content=breadcomment, reference=message
             )
-            return sentmessage
+            sentmessages.append(sentmessage)
+    return sentmessages
 
 
 async def compute_bread_message(
