@@ -2,6 +2,7 @@ import json
 import os
 import sqlite3
 from contextlib import contextmanager
+from enum import Enum
 
 from dotenv import load_dotenv
 from loguru import logger
@@ -43,18 +44,21 @@ def create_db() -> None:
         roundness REAL,
         labels_json TEXT
     )
-    
+    """
+
+    create_usertable_sql = """
     CREATE TABLE IF NOT EXISTS discordusers (
-        author_id INTEGER,
+        author_id INTEGER PRIMARY KEY,
         author_nickname TEXT,
         author_name TEXT
-    )    
+    ) ;  
     """
     if not os.path.exists(os.path.dirname(dbdatapath)):
         os.makedirs(os.path.dirname(dbdatapath))
     with sqlite_connection() as cursor:
         # Execute the SQL command
         cursor.execute(create_table_sql)
+        cursor.execute(create_usertable_sql)
 
 
 def upsert_message_stats(
@@ -148,78 +152,59 @@ def upsert_message_discordinfo(
         )
 
 
-def get_minmax_roundness_byuserid(user_id: int) -> dict:
+class OrderBy(Enum):
+    ASC = "ASC"
+    DES = "DESC"
+
+
+def get_minmax_roundness_byuserid(user_id: int, orderby: OrderBy) -> dict:
     # Returns min and max roundness of specified user, returning the ogmessage_id and jump_url as well
     logger.info(f"Fetching min and max roundness for user_id: {user_id}")
 
     # Define the SQL query to fetch min and max roundness, ogmessage_id, and jump_url
-    query = """
+    query = f"""
     SELECT roundness, ogmessage_id, replymessage_jump_url
     FROM messages
     WHERE author_id = ?
-    ORDER BY roundness ASC, ogmessage_id ASC
-    """
-
-    # Define the SQL query to fetch min and max roundness, ogmessage_id, and jump_url
-    query = """
-    SELECT roundness, ogmessage_id, replymessage_jump_url
-    FROM messages
-    WHERE author_id = ?
-    ORDER BY roundness ASC, ogmessage_id ASC
+    ORDER BY roundness {orderby}, ogmessage_id {orderby}
     """
 
     result = {
-        "min_roundness": None,
-        "max_roundness": None,
-        "min_roundness_url": None,
-        "max_roundness_url": None,
-        "min_roundness_ogmessage_id": None,
-        "max_roundness_ogmessage_id": None,
+        "roundness": None,
+        "roundness_url": None,
+        "roundness_ogmessage_id": None,
     }
 
     with sqlite_connection() as cursor:
         cursor.execute(query, (user_id,))
         rows = cursor.fetchall()
         if rows:
-            result["min_roundness"] = rows[0][0]
-            result["min_roundness_ogmessage_id"] = rows[0][1]
-            result["min_roundness_url"] = rows[0][2]
-
-            result["max_roundness"] = rows[-1][0]
-            result["max_roundness_ogmessage_id"] = rows[-1][1]
-            result["max_roundness_url"] = rows[-1][2]
-
+            result["roundness"] = rows[0][0]
+            result["roundness_ogmessage_id"] = rows[0][1]
+            result["roundness_url"] = rows[0][2]
     return result
 
 
-def get_minmax_roundness_leaderboard(n: int) -> dict:
+def get_minmax_roundness_leaderboard(n: int, orderby: OrderBy) -> dict:
     # Returns top 'n' min and max roundness returning the ogmessage_id and jump_url as well for each row
     logger.info(f"Fetching min and max roundness top {n} leaderboard")
 
     # Define the SQL queries to fetch top 'n' min and max roundness, ogmessage_id, and jump_url
-    min_roundness_query = """
+    roundness_query = f"""
     SELECT roundness, ogmessage_id, replymessage_jump_url, author_id, guild_id, channel_id
     FROM messages
     WHERE roundness not null
-    ORDER BY roundness ASC
+    ORDER BY roundness {orderby}
     LIMIT ?
     """
 
-    max_roundness_query = """
-    SELECT roundness, ogmessage_id, replymessage_jump_url, author_id, guild_id, channel_id
-    FROM messages
-    WHERE roundness not null
-    ORDER BY roundness DESC
-    LIMIT ?
-    """
-
-    result = {"min_roundness": [], "max_roundness": []}
+    result = []
 
     with sqlite_connection() as cursor:
-        cursor.execute(min_roundness_query, (n,))
+        cursor.execute(roundness_query, (n,))
         min_rows = cursor.fetchall()
         for row in min_rows:
-            result["min_roundness"].append(
+            result.append(
                 {
                     "roundness": row[0],
                     "ogmessage_id": row[1],
@@ -229,28 +214,14 @@ def get_minmax_roundness_leaderboard(n: int) -> dict:
                     "channel_id": row[5],
                 }
             )
-
-        cursor.execute(max_roundness_query, (n,))
-        max_rows = cursor.fetchall()
-        for row in max_rows:
-            result["max_roundness"].append(
-                {
-                    "roundness": row[0],
-                    "ogmessage_id": row[1],
-                    "jump_url": row[2],
-                    "author_id": row[3],
-                    "guild_id": row[4],
-                    "channel_id": row[5],
-                }
-            )
-
     return result
 
 
 if __name__ == "__main__":
     # create db
-    create_db()
-    res = get_minmax_roundness_leaderboard(3)
+    # create_db()
+    res = get_minmax_roundness_leaderboard(3, OrderBy.DES.value)
+    # res = select_user_info(123)
     a = 5
     """
     ogmessageid = 231231
