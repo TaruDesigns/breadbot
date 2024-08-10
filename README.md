@@ -63,3 +63,11 @@ ultralytics
 
 On top of that, depending on your OS, you might need to install additional system dependencies to support opencv/torch
 ` apt-get update && apt-get install ffmpeg libsm6 libxext6 libglib2.0-0 libxrender1 libgl1  -y`
+
+
+
+To build and publish: 
+```
+docker build --no-cache -t taruelec/breadbot .
+docker push taruelec/breadbot
+```
