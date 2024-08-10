@@ -61,9 +61,7 @@ def create_db() -> None:
         cursor.execute(create_usertable_sql)
 
 
-def upsert_message_stats(
-    ogmessage_id: int, roundness: float, labels_json: dict
-) -> None:
+def upsert_message_stats(ogmessage_id: int, roundness: float, labels_json: dict) -> None:
     logger.info(f"Upserting: {ogmessage_id}, {roundness}, {labels_json} in messages")
     # Convert the labels_json dictionary to a JSON string
     labels_json_str = json.dumps(labels_json)
@@ -83,9 +81,7 @@ def upsert_message_stats(
 
 def upsert_user_info(author_id: int, author_nickname: str, author_name: str):
     # Inserts the author info to cache results so we don't have to get info from discord all the time
-    logger.info(
-        f"Upserting: {author_id}, {author_nickname}, {author_name} in discordusers"
-    )
+    logger.info(f"Upserting: {author_id}, {author_nickname}, {author_name} in discordusers")
     # Convert the labels_json dictionary to a JSON string
     # Define the UPSERT SQL command
     upsert_sql = """
@@ -217,10 +213,35 @@ def get_minmax_roundness_leaderboard(n: int, orderby: OrderBy) -> dict:
     return result
 
 
+def get_roundness_history(user_id: int) -> list[tuple[int, int]]:
+    # Returns the roundness history for the user
+    logger.info(f"Fetching  roundness of user {user_id}")
+
+    # Define the SQL queries to fetch top 'n' min and max roundness, ogmessage_id, and jump_url
+    roundness_query = f"""
+    SELECT ogmessage_id, roundness
+    FROM messages
+    WHERE 1=1
+    AND roundness not null
+    AND author_id = ?
+    ORDER BY ogmessage_id {OrderBy.DES.value}
+    LIMIT 50
+    """
+
+    result = []
+
+    with sqlite_connection() as cursor:
+        cursor.execute(roundness_query, (user_id,))
+        rows = cursor.fetchall()
+        for i, row in enumerate(rows, start=1):
+            result.append((i, row[1]))
+    return result
+
+
 if __name__ == "__main__":
     # create db
     # create_db()
-    res = get_minmax_roundness_leaderboard(3, OrderBy.DES.value)
+    res = get_roundness_history(206734328879775746)
     # res = select_user_info(123)
     a = 5
     """

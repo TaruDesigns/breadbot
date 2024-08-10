@@ -13,6 +13,7 @@ from db.models import (
     upsert_user_info,
 )
 from discordroutes import bread as breadroute
+from plots import plots
 
 # This example requires the 'message_content' intent.
 intents = discord.Intents.default()
@@ -30,24 +31,19 @@ async def breadstats_handler(message: discord.Message, args: list[str]):
     """
     if len(args) < 2:
         await message.channel.send(content="Not enough arguments", reference=message)
+    elif args[1] == "--history":
+        ...
+        plot_filepath = plots.plot_roundness_by_user(message.author.id)
+        discord_file = discord.File(plot_filepath)
+        reply_content = f"Here's your dumb graph"
+        await message.channel.send(content=reply_content, reference=message, file=discord_file)
+
     elif args[1] == "--self":
         # Return results (top 1) for current user
-        results_min = get_minmax_roundness_byuserid(
-            message.author.id, orderby=OrderBy.ASC.value
-        )
-        min_roundness_percent = (
-            round(results_min["roundness"] * 100, 2)
-            if results_min["roundness"] is not None
-            else 0
-        )
-        results_max = get_minmax_roundness_byuserid(
-            message.author.id, orderby=OrderBy.DES.value
-        )
-        max_roundness_percent = (
-            round(results_max["roundness"] * 100, 2)
-            if results_max["roundness"] is not None
-            else 0
-        )
+        results_min = get_minmax_roundness_byuserid(message.author.id, orderby=OrderBy.ASC.value)
+        min_roundness_percent = round(results_min["roundness"] * 100, 2) if results_min["roundness"] is not None else 0
+        results_max = get_minmax_roundness_byuserid(message.author.id, orderby=OrderBy.DES.value)
+        max_roundness_percent = round(results_max["roundness"] * 100, 2) if results_max["roundness"] is not None else 0
         reply_content = f"""
                             Hello {message.author.name}:
                             Min roundness:  {min_roundness_percent:.2f}% on message: {results_min["roundness_url"]},
@@ -61,9 +57,7 @@ async def breadstats_handler(message: discord.Message, args: list[str]):
             append_to_limit = ""
             if limit > 10:
                 limit = 10
-                append_to_limit = (
-                    f" (You're asking too much, nobody has seen a top {limit} ever)"
-                )
+                append_to_limit = f" (You're asking too much, nobody has seen a top {limit} ever)"
         except Exception as e:
             logger.warning(e)
             limit = 3
@@ -74,9 +68,7 @@ async def breadstats_handler(message: discord.Message, args: list[str]):
         # Generate message part for top X
         reply_content_max = f"Top {limit}{append_to_limit}:"
         for idx, val in enumerate(results_max):
-            roundness_percent = (
-                round(val["roundness"] * 100, 2) if val["roundness"] is not None else 0
-            )
+            roundness_percent = round(val["roundness"] * 100, 2) if val["roundness"] is not None else 0
             user_info = select_user_info(val["author_id"])
             if user_info is None:
                 user_info = {"author_name": "unknown"}
@@ -87,9 +79,7 @@ async def breadstats_handler(message: discord.Message, args: list[str]):
             user_info = select_user_info(val["author_id"])
             if user_info is None:
                 user_info = {"author_name": "unknown"}
-            roundness_percent = (
-                round(val["roundness"] * 100, 2) if val["roundness"] is not None else 0
-            )
+            roundness_percent = round(val["roundness"] * 100, 2) if val["roundness"] is not None else 0
             reply_content_min = f"""{reply_content_min}\n #{idx + 1}: {user_info["author_name"]} with {roundness_percent:.2f}% on message {val["jump_url"]}"""
 
         reply_content = f"{reply_content_max}\n{reply_content_min}"
@@ -116,9 +106,7 @@ async def breadinference_handler(message: discord.Message, args: list[str]):
     # Check Bread Candidate Message
     try:
         if await breadroute.check_bread_message(message=message):
-            sentmessages = await breadroute.send_bread_message(
-                message=message, overrideconfidence=False
-            )
+            sentmessages = await breadroute.send_bread_message(message=message, overrideconfidence=False)
             # Store data in DB
             for sentmessage in sentmessages:
                 upsert_message_discordinfo(
@@ -129,9 +117,7 @@ async def breadinference_handler(message: discord.Message, args: list[str]):
                     channel_id=message.channel.id,
                     guild_id=message.guild.id,
                 )
-        elif await breadroute.check_areyousure_message(
-            message=message, botuser=bot.user
-        ):
+        elif await breadroute.check_areyousure_message(message=message, botuser=bot.user):
             logger.debug("Are you sure message! Do everything again!")
             # Timeline is: User message with bread pic -> Bot reply -> User reply to bot reply ; Invert to get OG message
             ogmessageref = message.reference.resolved.reference
@@ -142,9 +128,7 @@ async def breadinference_handler(message: discord.Message, args: list[str]):
                 message_id=ogmessageref.message_id,
             )
             # TODO double check that it the og message is a bread message?
-            sentmessages = await breadroute.send_bread_message(
-                message=ogmessage, overrideconfidence=True
-            )
+            sentmessages = await breadroute.send_bread_message(message=ogmessage, overrideconfidence=True)
             # Store data in DB
             for sentmessage in sentmessages:
                 upsert_message_discordinfo(
@@ -164,6 +148,7 @@ async def help_handler(message: discord.Message, args: list[str]):
     help_message = """Available commands:
                     $breadstats --self : Get your roundness bread stats
                     $breadstats --top X : Get the server roundness breadstats (X is a number)
+                    $breadstats --history : Get your roundness history
                     $help : you just used this
                     """
     await message.channel.send(content=help_message, reference=message)
@@ -191,11 +176,7 @@ async def on_message(message: discord.Message):
         return
     message_args = shlex.split(message.content.strip())
     func_args = (message, message_args)
-    if (
-        message_args
-        and message_args[0].startswith("$")
-        and message_args[0] in mapping_functions.keys()
-    ):
+    if message_args and message_args[0].startswith("$") and message_args[0] in mapping_functions.keys():
         await mapping_functions[message_args[0]](*func_args)
     else:
         # Default - assume it was a bread message and scan it anyway
