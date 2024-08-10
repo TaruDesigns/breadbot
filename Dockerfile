@@ -30,6 +30,7 @@ COPY breadinfer ./breadinfer
 COPY discordroutes ./discordroutes
 COPY yolov8/trainedmodels ./yolov8/trainedmodels
 COPY db ./db
+COPY plots ./plots
 COPY main.py .
 
 # Expose the port that FastAPI is running on
