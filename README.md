@@ -11,6 +11,8 @@
 
 Discord bot that sees your bread pics and confirms that it is, in fact, bread, using computer vision. Based on discord.py using YOLOv8
 
+![breadbotexample](./githubreadme/breadbot.png)
+
 ## 1.1. Why
 
 It's a fun project
@@ -25,6 +27,7 @@ Bot reads messages and filters based on channel and user that sent the message. 
 - Admin panel (based on FastAPI) -> In Progress, basic endpoints created
 - ~~Proper async inference with a "BreadBot is typing..." message for better UX~~ Done
 - Optimize inference models -> Planned
+- Breadstats! you can now compare your bread roundness stats to your peers
 
 # 3. Running it locally
 
